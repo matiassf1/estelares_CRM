@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
 import Login from './pages/Login.tsx';
 import CheckIn from './pages/CheckIn.tsx';
@@ -6,6 +6,19 @@ import Carnet from './pages/Carnet.tsx';
 import Portero from './pages/Portero.tsx';
 import Admin from './pages/Admin.tsx';
 import Preview from './pages/Preview.tsx';
+
+// Preserves ?t=<token> through the login redirect so a QR scan
+// that lands on /check-in?t=xxx still works even if not yet logged in.
+function CheckInGuard() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  if (!user || user.type !== 'member') {
+    const t = searchParams.get('t');
+    const redirect = t ? `/check-in?t=${t}` : '/check-in';
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />;
+  }
+  return <CheckIn />;
+}
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -26,7 +39,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login"    element={!user ? <Login />   : <Navigate to="/" replace />} />
-      <Route path="/check-in" element={isMember ? <CheckIn /> : <Navigate to="/login" replace />} />
+      <Route path="/check-in" element={<CheckInGuard />} />
       <Route path="/carnet"   element={isMember ? <Carnet />  : <Navigate to="/login" replace />} />
       <Route path="/portero"  element={isStaff  ? <Portero /> : <Navigate to="/login" replace />} />
       <Route path="/admin"    element={isAdmin  ? <Admin />   : <Navigate to="/login" replace />} />
