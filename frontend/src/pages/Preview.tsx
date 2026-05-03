@@ -7,7 +7,7 @@ const MOCK_MEMBER = {
   apellido: 'Fernández',
   dni: '28.451.230',
   patente: 'AB 123 CD',
-  foto_url: null as string | null,
+  foto_url: undefined,
 };
 
 const MOCK_ENTRIES = [
