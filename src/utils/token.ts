@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
-const QR_SECRET = process.env.QR_SECRET || 'default-qr-secret';
+if (!process.env.QR_SECRET) throw new Error('QR_SECRET env var is required');
+const QR_SECRET: string = process.env.QR_SECRET;
 const WINDOW_SECONDS = 30;
 
 export function getCurrentToken(): string {

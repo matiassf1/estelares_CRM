@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret';
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET env var is required');
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 export interface AuthPayload {
   id: string;
@@ -41,5 +42,5 @@ export function requireRole(...roles: string[]) {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
