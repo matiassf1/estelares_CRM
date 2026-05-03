@@ -38,12 +38,22 @@ router.post('/', async (req, res) => {
 router.put('/:id/assign', async (req, res) => {
   const { member_id } = req.body;
   if (!member_id) { res.status(400).json({ error: 'member_id requerido' }); return; }
-  await pool.query('UPDATE parking_spots SET member_id = NULL WHERE member_id = $1', [member_id]);
-  const { rows } = await pool.query(
-    'UPDATE parking_spots SET member_id = $1 WHERE id = $2 RETURNING *',
-    [member_id, req.params.id]
-  );
-  res.json(rows[0]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE parking_spots SET member_id = NULL WHERE member_id = $1', [member_id]);
+    const { rows } = await client.query(
+      'UPDATE parking_spots SET member_id = $1 WHERE id = $2 RETURNING *',
+      [member_id, req.params.id]
+    );
+    await client.query('COMMIT');
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 // Unassign (free the spot)
