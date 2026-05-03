@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db';
 import { signToken, authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos, esperá 15 minutos' },
+});
+
+router.post('/login', loginLimiter, async (req, res) => {
   const { dni, password } = req.body;
   if (!dni || !password) {
     res.status(400).json({ error: 'DNI y contraseña requeridos' });
@@ -27,7 +36,7 @@ router.post('/login', async (req, res) => {
   });
 });
 
-router.post('/admin/login', async (req, res) => {
+router.post('/admin/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     res.status(400).json({ error: 'Usuario y contraseña requeridos' });
