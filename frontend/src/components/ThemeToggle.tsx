@@ -5,7 +5,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      title={theme === 'clasico' ? 'Cambiar a Steel' : 'Cambiar a Clásico'}
+      title={theme === 'clasico' ? 'Cambiar a Escudo' : 'Cambiar a Clásico'}
       style={{
         display: 'flex', alignItems: 'center', gap: 5,
         color: 'var(--brand-muted)', fontSize: '0.65rem',
@@ -16,7 +16,7 @@ export function ThemeToggle() {
       }}
     >
       <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--brand-primary)', display: 'inline-block', flexShrink: 0 }} />
-      {theme === 'clasico' ? 'Clásico' : 'Steel'}
+      {theme === 'clasico' ? 'Clásico' : 'Escudo'}
     </button>
   );
 }

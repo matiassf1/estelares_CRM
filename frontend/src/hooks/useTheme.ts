@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Theme = 'clasico' | 'steel';
+type Theme = 'clasico' | 'escudo';
 const KEY = 'estelares_theme';
 
 export function useTheme() {
@@ -13,6 +13,6 @@ export function useTheme() {
     localStorage.setItem(KEY, theme);
   }, [theme]);
 
-  const toggle = () => setTheme(t => (t === 'clasico' ? 'steel' : 'clasico'));
+  const toggle = () => setTheme(t => (t === 'clasico' ? 'escudo' : 'clasico'));
   return { theme, toggle };
 }
