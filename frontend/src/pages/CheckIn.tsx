@@ -16,8 +16,13 @@ export default function CheckIn() {
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  // Guard: prevents processToken from running concurrently (double-fire from
+  // scanner callback + URL param useEffect firing at the same time).
+  const processingRef = useRef(false);
 
   const processToken = async (token: string) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
     setStatus('loading');
     try {
       const res = await api.checkIn(token);
@@ -27,10 +32,12 @@ export default function CheckIn() {
       const msg = err instanceof Error ? err.message : 'Error';
       setErrorMsg(msg);
       setStatus(msg.toLowerCase().includes('ya registraste') ? 'already' : 'error');
+    } finally {
+      processingRef.current = false;
     }
   };
 
-  // Auto-process token from URL query param (camera scan from outside the app)
+  // Auto-process token from URL query param (native camera scan → Safari link)
   useEffect(() => {
     const token = searchParams.get('t');
     if (token) processToken(token);
@@ -40,16 +47,17 @@ export default function CheckIn() {
   useEffect(() => {
     if (status !== 'scanning' || !videoRef.current) return;
 
+    let handled = false; // prevents the scanner callback from firing twice
     const scanner = new QrScanner(
       videoRef.current,
       (result) => {
+        if (handled) return;
         try {
           const url = new URL(result.data);
           const token = url.searchParams.get('t');
           if (token) {
+            handled = true;
             scanner.stop();
-            scanner.destroy();
-            scannerRef.current = null;
             processToken(token);
           }
         } catch {
@@ -58,7 +66,7 @@ export default function CheckIn() {
       },
       {
         highlightScanRegion: true,
-        highlightCodeOutline: true,
+        highlightCodeOutline: false,
         preferredCamera: 'environment',
       }
     );
@@ -67,6 +75,7 @@ export default function CheckIn() {
     scannerRef.current = scanner;
 
     return () => {
+      handled = true; // cancel any pending callback
       scanner.stop();
       scanner.destroy();
       scannerRef.current = null;
@@ -89,18 +98,23 @@ export default function CheckIn() {
   /* ── Scanner view ── */
   if (status === 'scanning') {
     return (
-      <div className="min-h-screen bg-black flex flex-col">
-        <div className="flex justify-between items-center px-5 py-4 safe-top">
-          <p className="text-white/70 text-sm">Apuntá al QR del portero</p>
+      <div style={{ position: 'fixed', inset: 0, background: '#000', display: 'flex', flexDirection: 'column' }}>
+        {/* Header overlay */}
+        <div style={{ position: 'relative', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem' }}>Apuntá al QR del portero</p>
           <button
             onClick={stopScanner}
-            className="text-white/50 text-sm uppercase tracking-wider active:text-white px-2 py-1"
+            style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '6px 8px' }}
           >
             Cancelar
           </button>
         </div>
-        <div className="flex-1 relative overflow-hidden">
-          <video ref={videoRef} className="w-full h-full object-cover" />
+        {/* Video fills remaining space */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <video
+            ref={videoRef}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         </div>
       </div>
     );
