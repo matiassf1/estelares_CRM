@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api.ts';
 import ClubShield from '../components/ClubShield.tsx';
-import QrScanner from 'qr-scanner';
+import jsQR from 'jsqr';
 
 type Status = 'idle' | 'scanning' | 'loading' | 'success' | 'already' | 'error';
 
@@ -15,9 +15,7 @@ export default function CheckIn() {
   const [memberName, setMemberName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const scannerRef = useRef<QrScanner | null>(null);
-  // Guard: prevents processToken from running concurrently (double-fire from
-  // scanner callback + URL param useEffect firing at the same time).
+  // Prevents processToken from running concurrently (URL param + scanner firing at same time)
   const processingRef = useRef(false);
 
   const processToken = async (token: string) => {
@@ -37,57 +35,73 @@ export default function CheckIn() {
     }
   };
 
-  // Auto-process token from URL query param (native camera scan → Safari link)
+  // On mount: process URL token (native camera) OR redirect to carnet if already checked in
   useEffect(() => {
     const token = searchParams.get('t');
-    if (token) processToken(token);
+    if (token) {
+      processToken(token);
+      return;
+    }
+    api.todayStatus()
+      .then(s => { if (s.ingresado) navigate('/carnet', { replace: true }); })
+      .catch(() => {});
   }, []);
 
-  // Start/stop in-app QR scanner
+  // In-app QR scanner using getUserMedia + jsQR (pure JS, no Web Workers, no CSP issues)
   useEffect(() => {
-    if (status !== 'scanning' || !videoRef.current) return;
+    const video = videoRef.current;
+    if (status !== 'scanning' || !video) return;
 
-    let handled = false; // prevents the scanner callback from firing twice
-    const scanner = new QrScanner(
-      videoRef.current,
-      (result) => {
-        if (handled) return;
+    let stream: MediaStream | null = null;
+    let timerId: ReturnType<typeof setTimeout>;
+    let stopped = false;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const tick = () => {
+      if (stopped || !ctx || video.readyState < 2) {
+        timerId = setTimeout(tick, 120);
+        return;
+      }
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code?.data) {
         try {
-          const url = new URL(result.data);
+          const url = new URL(code.data);
           const token = url.searchParams.get('t');
           if (token) {
-            handled = true;
-            scanner.stop();
+            stopped = true;
+            stream?.getTracks().forEach(t => t.stop());
             processToken(token);
+            return;
           }
-        } catch {
-          // Not a recognized QR — keep scanning
-        }
-      },
-      {
-        highlightScanRegion: true,
-        highlightCodeOutline: false,
-        preferredCamera: 'environment',
+        } catch { /* not our URL, keep scanning */ }
       }
-    );
+      timerId = setTimeout(tick, 120); // ~8fps — enough for QR, easy on CPU
+    };
 
-    scanner.start().catch(() => setStatus('idle'));
-    scannerRef.current = scanner;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } })
+      .then(s => {
+        stream = s;
+        video.srcObject = s;
+        video.play().then(() => { timerId = setTimeout(tick, 120); });
+      })
+      .catch(() => setStatus('idle'));
 
     return () => {
-      handled = true; // cancel any pending callback
-      scanner.stop();
-      scanner.destroy();
-      scannerRef.current = null;
+      stopped = true;
+      clearTimeout(timerId);
+      stream?.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
     };
   }, [status]);
 
-  const stopScanner = () => {
-    scannerRef.current?.stop();
-    scannerRef.current?.destroy();
-    scannerRef.current = null;
-    setStatus('idle');
-  };
+  const stopScanner = () => setStatus('idle');
 
   const reset = () => {
     setStatus('idle');
@@ -113,6 +127,8 @@ export default function CheckIn() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <video
             ref={videoRef}
+            playsInline
+            muted
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
