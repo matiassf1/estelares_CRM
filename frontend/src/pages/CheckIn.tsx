@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api.ts';
 import ClubShield from '../components/ClubShield.tsx';
+import QrScanner from 'qr-scanner';
 
-type Status = 'idle' | 'loading' | 'success' | 'already' | 'error';
+type Status = 'idle' | 'scanning' | 'loading' | 'success' | 'already' | 'error';
 
 export default function CheckIn() {
   const { user, logout } = useAuth();
@@ -13,6 +14,8 @@ export default function CheckIn() {
   const [status, setStatus] = useState<Status>('idle');
   const [memberName, setMemberName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
 
   const processToken = async (token: string) => {
     setStatus('loading');
@@ -27,16 +30,81 @@ export default function CheckIn() {
     }
   };
 
+  // Auto-process token from URL query param (camera scan from outside the app)
   useEffect(() => {
     const token = searchParams.get('t');
     if (token) processToken(token);
   }, []);
+
+  // Start/stop in-app QR scanner
+  useEffect(() => {
+    if (status !== 'scanning' || !videoRef.current) return;
+
+    const scanner = new QrScanner(
+      videoRef.current,
+      (result) => {
+        try {
+          const url = new URL(result.data);
+          const token = url.searchParams.get('t');
+          if (token) {
+            scanner.stop();
+            scanner.destroy();
+            scannerRef.current = null;
+            processToken(token);
+          }
+        } catch {
+          // Not a recognized QR — keep scanning
+        }
+      },
+      {
+        highlightScanRegion: true,
+        highlightCodeOutline: true,
+        preferredCamera: 'environment',
+      }
+    );
+
+    scanner.start().catch(() => setStatus('idle'));
+    scannerRef.current = scanner;
+
+    return () => {
+      scanner.stop();
+      scanner.destroy();
+      scannerRef.current = null;
+    };
+  }, [status]);
+
+  const stopScanner = () => {
+    scannerRef.current?.stop();
+    scannerRef.current?.destroy();
+    scannerRef.current = null;
+    setStatus('idle');
+  };
 
   const reset = () => {
     setStatus('idle');
     setErrorMsg('');
     navigate('/check-in', { replace: true });
   };
+
+  /* ── Scanner view ── */
+  if (status === 'scanning') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col">
+        <div className="flex justify-between items-center px-5 py-4 safe-top">
+          <p className="text-white/70 text-sm">Apuntá al QR del portero</p>
+          <button
+            onClick={stopScanner}
+            className="text-white/50 text-sm uppercase tracking-wider active:text-white px-2 py-1"
+          >
+            Cancelar
+          </button>
+        </div>
+        <div className="flex-1 relative overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover" />
+        </div>
+      </div>
+    );
+  }
 
   /* ── Loading ── */
   if (status === 'loading') {
@@ -60,8 +128,6 @@ export default function CheckIn() {
         <div className="h-1.5 w-full animate-fade-in" style={{ background: 'linear-gradient(90deg, #16a34a, #15803d)' }} />
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-
-          {/* Animated circle + checkmark */}
           <div className="w-24 h-24 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mb-6 animate-scale-in">
             <svg className="w-11 h-11 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path className="draw-path" d="M5 13l4 4L19 7" />
@@ -78,7 +144,6 @@ export default function CheckIn() {
             {memberName}
           </p>
 
-          {/* Zone badge */}
           <div
             className="border border-green-500/40 rounded-2xl px-8 py-4 bg-green-500/5 animate-slide-up"
             style={{ animationDelay: '0.5s' }}
@@ -192,19 +257,13 @@ export default function CheckIn() {
           Escaneá el QR que muestra el portero para registrar tu ingreso
         </p>
 
-        <div className="mt-10 border border-brand-border rounded-xl px-6 py-4 bg-brand-surface animate-slide-up-d2">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-red/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-brand-red" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <p className="text-brand-muted text-xs text-left leading-snug">
-              Usá la cámara de tu celular<br />para escanear el QR del portero
-            </p>
-          </div>
-        </div>
+        <button
+          onClick={() => setStatus('scanning')}
+          className="mt-10 w-full max-w-xs py-4 rounded-2xl font-display tracking-widest text-white text-lg active:scale-95 transition-transform animate-slide-up-d2"
+          style={{ backgroundColor: '#CC2222', boxShadow: '0 0 24px rgba(204,34,34,0.4)' }}
+        >
+          ESCANEAR QR
+        </button>
       </div>
 
       <p className="text-center text-brand-muted/30 text-xs pb-8 tracking-widest uppercase animate-fade-in">
