@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['shield.jpg'],
+      includeAssets: ['shield.png', 'shield.jpg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,jpg,png,svg,woff2}'],
         runtimeCaching: [
@@ -41,8 +41,8 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: '/shield.jpg', sizes: '192x192', type: 'image/jpeg' },
-          { src: '/shield.jpg', sizes: '512x512', type: 'image/jpeg' },
+          { src: '/shield.png', sizes: '192x192', type: 'image/png' },
+          { src: '/shield.png', sizes: '512x512', type: 'image/png' },
         ],
       },
     }),

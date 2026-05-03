@@ -48,7 +48,7 @@ function removeWhiteBackground(imageData: ImageData): void {
 let cachedSrc: string | null = null;
 
 export default function ClubShield({ size = 80, className = '', variant = 'gold', style }: Props) {
-  const [src, setSrc] = useState<string>(cachedSrc ?? '/shield.jpg');
+  const [src, setSrc] = useState<string>(cachedSrc ?? '/shield.png');
 
   useEffect(() => {
     if (variant === 'original' || cachedSrc) {
@@ -68,7 +68,7 @@ export default function ClubShield({ size = 80, className = '', variant = 'gold'
       cachedSrc = canvas.toDataURL('image/png');
       setSrc(cachedSrc);
     };
-    img.src = '/shield.jpg';
+    img.src = '/shield.png';
   }, [variant]);
 
   const filterStyle: React.CSSProperties =

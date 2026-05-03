@@ -27,7 +27,7 @@ function AppRoutes() {
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-bg flex flex-col items-center justify-center gap-4">
-        <img src="/shield.jpg" alt="Estelares" width={56} style={{ filter: 'invert(1)', opacity: 0.5 }} />
+        <img src="/shield.png" alt="Estelares" width={56} style={{ filter: 'invert(1)', opacity: 0.5 }} />
         <div className="w-6 h-6 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
       </div>
     );
