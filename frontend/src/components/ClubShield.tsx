@@ -3,16 +3,11 @@ import { useState, useEffect } from 'react';
 interface Props {
   size?: number;
   className?: string;
-  /**
-   * 'gold'     – warm gold tint (default, for dark surfaces)
-   * 'white'    – inverted/bright (for red/colored surfaces)
-   * 'original' – no filter
-   */
-  variant?: 'gold' | 'white' | 'original';
+  variant?: 'gold' | 'white' | 'original'; // kept for API compat, no longer applied
   style?: React.CSSProperties;
 }
 
-// Flood-fill from edges to remove the outer white JPEG background.
+// Flood-fill from edges to remove the outer white background.
 // Seeds from all border pixels; stops at dark pixels (the crest outline).
 // Preserves white design elements inside the crest since they're not edge-reachable.
 function removeWhiteBackground(imageData: ImageData): void {
@@ -47,14 +42,11 @@ function removeWhiteBackground(imageData: ImageData): void {
 
 let cachedSrc: string | null = null;
 
-export default function ClubShield({ size = 80, className = '', variant = 'gold', style }: Props) {
+export default function ClubShield({ size = 80, className = '', style }: Props) {
   const [src, setSrc] = useState<string>(cachedSrc ?? '/shield.png');
 
   useEffect(() => {
-    if (variant === 'original' || cachedSrc) {
-      if (cachedSrc) setSrc(cachedSrc);
-      return;
-    }
+    if (cachedSrc) { setSrc(cachedSrc); return; }
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -69,12 +61,7 @@ export default function ClubShield({ size = 80, className = '', variant = 'gold'
       setSrc(cachedSrc);
     };
     img.src = '/shield.png';
-  }, [variant]);
-
-  const filterStyle: React.CSSProperties =
-    variant === 'gold'  ? { filter: 'invert(1) sepia(1) saturate(2) hue-rotate(3deg) brightness(1.1)' } :
-    variant === 'white' ? { filter: 'invert(1)' } :
-    {};
+  }, []);
 
   return (
     <img
@@ -83,7 +70,7 @@ export default function ClubShield({ size = 80, className = '', variant = 'gold'
       width={size}
       height={size}
       className={`object-contain select-none ${className}`}
-      style={{ ...filterStyle, ...style }}
+      style={style}
       draggable={false}
     />
   );
