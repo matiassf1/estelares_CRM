@@ -14,20 +14,23 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
     return;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const { rows: existing } = await pool.query(
-    `SELECT id FROM check_ins WHERE member_id = $1 AND DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
-    [memberId, today]
-  );
-  if (existing.length > 0) {
-    res.status(409).json({ error: 'Ya registraste tu ingreso hoy' });
+  // INSERT atómico: el unique index en (member_id, DATE) garantiza
+  // que dos requests simultáneas no produzcan check-ins duplicados.
+  let inserted: { rowCount: number | null };
+  try {
+    inserted = await pool.query(
+      'INSERT INTO check_ins (member_id, token_used) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [memberId, String(token)]
+    );
+  } catch {
+    res.status(500).json({ error: 'Error al registrar el ingreso' });
     return;
   }
 
-  await pool.query(
-    'INSERT INTO check_ins (member_id, token_used) VALUES ($1, $2)',
-    [memberId, token]
-  );
+  if (!inserted.rowCount) {
+    res.status(409).json({ error: 'Ya registraste tu ingreso hoy' });
+    return;
+  }
 
   const { rows } = await pool.query(
     'SELECT nombre, apellido, patente FROM members WHERE id = $1',

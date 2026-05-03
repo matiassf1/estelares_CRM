@@ -46,6 +46,12 @@ export async function initDb(): Promise<void> {
     );
   `);
 
+  // Prevents duplicate check-ins on the same day (race-condition safe)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_member_checkin_day
+      ON check_ins (member_id, DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires'));
+  `);
+
   const { rows } = await pool.query('SELECT COUNT(*) as count FROM admins');
   if (parseInt(rows[0].count) === 0) {
     const adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
