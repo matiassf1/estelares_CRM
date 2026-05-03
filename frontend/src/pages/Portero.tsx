@@ -103,7 +103,7 @@ export default function Portero() {
                 {/* Red scan-line sweeping over QR */}
                 <div
                   className="absolute left-2 right-2 h-0.5 rounded-full animate-scan-line pointer-events-none"
-                  style={{ background: 'linear-gradient(90deg, transparent, #CC2222, transparent)', top: '10%' }}
+                  style={{ background: 'linear-gradient(90deg, transparent, var(--brand-primary), transparent)', top: '10%' }}
                 />
               </div>
             )}

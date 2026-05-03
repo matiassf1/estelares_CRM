@@ -4,15 +4,15 @@ export default {
     extend: {
       colors: {
         brand: {
-          red:         '#CC2222',
-          'red-dark':  '#9B1515',
-          gold:        '#C9A84C',
-          'gold-lt':   '#E8D49E',
-          bg:          '#0D0D0D',
-          surface:     '#141414',
-          'surface-2': '#1E1E1E',
-          border:      '#2C2C2C',
-          muted:       '#7A7A7A',
+          red:         'rgb(var(--brand-primary-rgb) / <alpha-value>)',
+          'red-dark':  'rgb(var(--brand-primary-dark-rgb) / <alpha-value>)',
+          gold:        'rgb(var(--brand-accent-rgb) / <alpha-value>)',
+          'gold-lt':   'rgb(var(--brand-accent-lt-rgb) / <alpha-value>)',
+          bg:          'rgb(var(--brand-bg-rgb) / <alpha-value>)',
+          surface:     'rgb(var(--brand-surface-rgb) / <alpha-value>)',
+          'surface-2': 'rgb(var(--brand-surface-2-rgb) / <alpha-value>)',
+          border:      'rgb(var(--brand-border-rgb) / <alpha-value>)',
+          muted:       'rgb(var(--brand-muted-rgb) / <alpha-value>)',
         },
       },
       fontFamily: {

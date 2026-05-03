@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
+import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 type Mode = 'member' | 'staff';
 
@@ -37,20 +38,20 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen pattern-lines flex flex-col overflow-hidden" style={{ backgroundColor: '#0D0D0D' }}>
+    <div className="min-h-screen pattern-lines flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>
 
       {/* ── Red hero ── */}
       <div className="relative flex flex-col items-center justify-end pt-14 pb-16 overflow-hidden">
         <div
           className="absolute inset-0 animate-diagonal-in"
-          style={{ background: 'linear-gradient(135deg, #CC2222 0%, #8B1212 55%, transparent 55%)' }}
+          style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 55%, transparent 55%)' }}
         />
         <div
           className="absolute inset-0 pattern-lines opacity-20 animate-diagonal-in"
         />
         <div
           className="absolute bottom-0 left-0 right-0 h-12"
-          style={{ backgroundColor: '#0D0D0D', clipPath: 'polygon(0 100%, 100% 0, 100% 100%)' }}
+          style={{ backgroundColor: 'var(--brand-bg)', clipPath: 'polygon(0 100%, 100% 0, 100% 100%)' }}
         />
 
         <div className="relative z-10 flex flex-col items-center animate-slide-up-far">
@@ -58,20 +59,20 @@ export default function Login() {
           <h1 className="font-display text-white tracking-widest" style={{ fontSize: '2.6rem', lineHeight: 1, letterSpacing: '0.14em' }}>
             ESTELARES
           </h1>
-          <p className="font-display tracking-[0.4em] text-sm mt-1 gold-glow" style={{ color: '#C9A84C' }}>
+          <p className="font-display tracking-[0.4em] text-sm mt-1 gold-glow" style={{ color: 'var(--brand-accent)' }}>
             FUTSAL
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <div className="h-px w-6" style={{ backgroundColor: 'rgba(201,168,76,0.4)' }} />
-            <span className="text-xs tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>DESDE 2012</span>
-            <div className="h-px w-6" style={{ backgroundColor: 'rgba(201,168,76,0.4)' }} />
+            <div className="h-px w-6" style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.4)' }} />
+            <span className="text-xs tracking-widest" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.6)' }}>DESDE 2012</span>
+            <div className="h-px w-6" style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.4)' }} />
           </div>
         </div>
       </div>
 
       {/* ── Form card ── */}
       <div className="relative z-10 flex-1 flex flex-col items-center px-5 -mt-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ backgroundColor: '#141414', border: '1px solid rgba(201,168,76,0.2)' }}>
+        <div className="w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
 
           {/* ── Mode toggle — clear active state ── */}
           <div className="flex gap-2 mb-6">
@@ -84,11 +85,11 @@ export default function Login() {
                   onClick={() => setMode(m)}
                   className="flex-1 py-3 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-200 relative"
                   style={{
-                    backgroundColor: active ? '#CC2222' : '#1A1A1A',
+                    backgroundColor: active ? 'var(--brand-primary)' : 'var(--brand-surface-2)',
                     color:           active ? '#FFFFFF' : '#666',
-                    border:          active ? '1px solid #CC2222' : '1px solid rgba(201,168,76,0.18)',
+                    border:          active ? '1px solid var(--brand-primary)' : '1px solid rgb(var(--brand-accent-rgb) / 0.18)',
                     transform:       active ? 'scale(1.03)' : 'scale(1)',
-                    boxShadow:       active ? '0 0 18px rgba(204,34,34,0.35)' : 'none',
+                    boxShadow:       active ? '0 0 18px rgb(var(--brand-primary-rgb) / 0.35)' : 'none',
                   }}
                 >
                   {active && (
@@ -96,6 +97,7 @@ export default function Login() {
                       className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
                       style={{ backgroundColor: '#FF6B6B' }}
                     />
+
                   )}
                   {m === 'member' ? 'Jugador' : 'Staff'}
                 </button>
@@ -126,9 +128,9 @@ export default function Login() {
 
             {error && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 animate-slide-up"
-                style={{ backgroundColor: 'rgba(204,34,34,0.1)', border: '1px solid rgba(204,34,34,0.3)' }}>
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#CC2222' }} />
-                <p className="text-sm" style={{ color: '#CC2222' }}>{error}</p>
+                style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
+                <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{error}</p>
               </div>
             )}
 
@@ -138,7 +140,7 @@ export default function Login() {
                 disabled={loading}
                 className="btn-red w-full font-display tracking-widest py-4 rounded-xl transition-all active:scale-95 disabled:opacity-50"
                 style={{
-                  backgroundColor: '#CC2222',
+                  backgroundColor: 'var(--brand-primary)',
                   color: '#fff',
                   fontSize: '1.15rem',
                   letterSpacing: '0.18em',
@@ -151,9 +153,12 @@ export default function Login() {
           </form>
         </div>
 
-        <p className="text-xs py-6 tracking-widest animate-fade-in" style={{ color: 'rgba(201,168,76,0.3)', animationDelay: '0.4s' }}>
+        <p className="text-xs py-6 tracking-widest animate-fade-in" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.3)', animationDelay: '0.4s' }}>
           ESTELARES FUTSAL © 2012
         </p>
+        <div className="pb-6 animate-fade-in" style={{ animationDelay: '0.45s' }}>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );

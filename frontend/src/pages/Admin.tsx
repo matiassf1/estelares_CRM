@@ -114,27 +114,27 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen pattern-lines" style={{ backgroundColor: '#0D0D0D' }}>
+    <div className="min-h-screen pattern-lines" style={{ backgroundColor: 'var(--brand-bg)' }}>
 
       {/* ── Header ── */}
       <div className="sticky top-0 z-50 px-5 py-3 flex justify-between items-center"
-        style={{ backgroundColor: '#141414', borderBottom: '1px solid rgba(201,168,76,0.2)' }}>
+        style={{ backgroundColor: 'var(--brand-surface)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
         <div className="flex items-center gap-3">
           <ClubShield size={30} className="opacity-90" />
           <div>
             <p className="text-white text-sm font-semibold leading-tight">Estelares Futsal</p>
-            <p className="text-xs leading-tight" style={{ color: '#7A7A7A' }}>Panel Admin</p>
+            <p className="text-xs leading-tight" style={{ color: 'var(--brand-muted)' }}>Panel Admin</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/portero')}
             className="text-xs font-semibold uppercase tracking-wider active:opacity-70"
-            style={{ color: '#C9A84C' }}>
+            style={{ color: 'var(--brand-accent)' }}>
             Portero
           </button>
           <button onClick={logout}
             className="text-xs uppercase tracking-wider active:text-white"
-            style={{ color: '#7A7A7A' }}>
+            style={{ color: 'var(--brand-muted)' }}>
             Salir
           </button>
         </div>
@@ -145,26 +145,26 @@ export default function Admin() {
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 gap-3 mb-6 mt-2">
           <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up"
-            style={{ backgroundColor: '#141414', border: '1px solid rgba(201,168,76,0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: '#CC2222' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: '#C9A84C' }}>Ingresos hoy</p>
+            style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-primary)' }} />
+            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Ingresos hoy</p>
             <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.today}</p>
           </div>
-          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up" style={{ animationDelay: '0.06s', backgroundColor: '#141414', border: '1px solid rgba(201,168,76,0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: '#C9A84C' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: '#C9A84C' }}>Activos</p>
+          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up" style={{ animationDelay: '0.06s', backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-accent)' }} />
+            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Activos</p>
             <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.total}</p>
           </div>
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: '#141414', border: '1px solid rgba(201,168,76,0.15)', animationDelay: '0.08s' }}>
+        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
           {(['jugadores', 'parking'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
               style={tab === t
-                ? { backgroundColor: '#CC2222', color: '#fff' }
-                : { color: '#7A7A7A' }}>
+                ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
+                : { color: 'var(--brand-muted)' }}>
               {t === 'jugadores' ? 'Jugadores' : 'Estacionamientos'}
             </button>
           ))}
@@ -185,7 +185,7 @@ export default function Admin() {
               <button
                 onClick={openCreate}
                 className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                style={{ backgroundColor: '#CC2222', border: 'none' }}
+                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
               >
                 + AGREGAR
               </button>
@@ -193,31 +193,31 @@ export default function Admin() {
 
             {showForm && (
               <form onSubmit={handleSubmit} className="rounded-2xl p-5 mb-5 animate-slide-up"
-                style={{ backgroundColor: '#141414', border: '1px solid rgba(204,34,34,0.35)' }}>
+                style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
 
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: '#CC2222' }} />
+                    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }} />
                     <h3 className="font-display text-white tracking-widest text-lg">
                       {editingId ? 'EDITAR JUGADOR' : 'NUEVO JUGADOR'}
                     </h3>
                   </div>
                   <button type="button" onClick={() => setShowForm(false)}
                     className="text-xs uppercase tracking-wider active:text-white"
-                    style={{ color: '#7A7A7A' }}>✕</button>
+                    style={{ color: 'var(--brand-muted)' }}>✕</button>
                 </div>
 
                 <div className="flex items-center gap-4 mb-5 pb-5"
-                  style={{ borderBottom: '1px solid rgba(201,168,76,0.12)' }}>
+                  style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
                   <div
                     onClick={() => fileRef.current?.click()}
                     className="rounded-2xl cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all active:scale-95"
-                    style={{ width: 72, height: 72, backgroundColor: '#0D0D0D', border: '2px dashed rgba(201,168,76,0.3)' }}
+                    style={{ width: 72, height: 72, backgroundColor: 'var(--brand-bg)', border: '2px dashed rgb(var(--brand-accent-rgb) / 0.3)' }}
                   >
                     {form.foto_url ? (
                       <img src={form.foto_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <svg className="w-6 h-6" style={{ color: '#C9A84C', opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <svg className="w-6 h-6" style={{ color: 'var(--brand-accent)', opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
@@ -225,10 +225,10 @@ export default function Admin() {
                   </div>
                   <div>
                     <p className="text-white text-xs font-semibold mb-0.5">Foto del jugador</p>
-                    <p className="text-xs" style={{ color: '#7A7A7A' }}>Opcional · se comprime automáticamente</p>
+                    <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Opcional · se comprime automáticamente</p>
                     {form.foto_url && (
                       <button type="button" onClick={() => setForm(f => ({ ...f, foto_url: '' }))}
-                        className="text-xs mt-1 active:opacity-70" style={{ color: '#CC2222' }}>
+                        className="text-xs mt-1 active:opacity-70" style={{ color: 'var(--brand-primary)' }}>
                         Quitar foto
                       </button>
                     )}
@@ -254,21 +254,21 @@ export default function Admin() {
 
                 {formError && (
                   <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mt-3"
-                    style={{ backgroundColor: 'rgba(204,34,34,0.1)', border: '1px solid rgba(204,34,34,0.3)' }}>
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#CC2222' }} />
-                    <p className="text-sm" style={{ color: '#CC2222' }}>{formError}</p>
+                    style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
+                    <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{formError}</p>
                   </div>
                 )}
 
                 <div className="flex gap-2 mt-5">
                   <button type="submit" disabled={saving}
                     className="btn-red flex-1 font-display tracking-widest text-white text-base py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50"
-                    style={{ backgroundColor: '#CC2222', border: 'none' }}>
+                    style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
                     {saving ? 'GUARDANDO...' : 'GUARDAR'}
                   </button>
                   <button type="button" onClick={() => setShowForm(false)}
                     className="px-5 rounded-xl text-sm active:text-white transition-colors"
-                    style={{ backgroundColor: '#1A1A1A', color: '#7A7A7A', border: '1px solid rgba(201,168,76,0.15)' }}>
+                    style={{ backgroundColor: 'var(--brand-surface-2)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
                     Cancelar
                   </button>
                 </div>
@@ -277,7 +277,7 @@ export default function Admin() {
 
             <div className="space-y-2">
               {filtered.length === 0 && (
-                <div className="text-center py-12 text-sm" style={{ color: 'rgba(122,122,122,0.4)' }}>
+                <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
                   {search ? 'Sin resultados para esa búsqueda' : 'No hay jugadores cargados'}
                 </div>
               )}
@@ -285,23 +285,23 @@ export default function Admin() {
                 <div key={m.id}
                   className="rounded-xl px-4 py-3 transition-all"
                   style={{
-                    backgroundColor: '#141414',
-                    border: m.activo ? '1px solid rgba(201,168,76,0.2)' : '1px solid rgba(44,44,44,0.5)',
+                    backgroundColor: 'var(--brand-surface)',
+                    border: m.activo ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
                     opacity: m.activo ? 1 : 0.45,
                   }}>
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: '#0D0D0D', border: '1px solid rgba(201,168,76,0.15)' }}>
+                        style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
                         {m.foto_url ? (
                           <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="font-display text-sm" style={{ color: '#7A7A7A' }}>{i + 1}</span>
+                          <span className="font-display text-sm" style={{ color: 'var(--brand-muted)' }}>{i + 1}</span>
                         )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-white font-semibold text-sm truncate">{m.nombre} {m.apellido}</p>
-                        <p className="text-xs" style={{ color: '#7A7A7A' }}>
+                        <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
                           DNI {m.dni}{m.patente ? ` · ${m.patente}` : ''}
                         </p>
                       </div>
@@ -333,7 +333,7 @@ export default function Admin() {
 
             {filtered.length > 0 && (
               <p className="text-center text-xs mt-6 tracking-widest uppercase"
-                style={{ color: 'rgba(201,168,76,0.25)' }}>
+                style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
                 {filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}
               </p>
             )}
@@ -356,7 +356,7 @@ export default function Admin() {
                 type="submit"
                 disabled={addingSpot || !newSpotNumber.trim()}
                 className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                style={{ backgroundColor: '#CC2222', border: 'none' }}
+                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
               >
                 + AGREGAR
               </button>
@@ -364,15 +364,15 @@ export default function Admin() {
 
             {spotError && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mb-4 animate-slide-up"
-                style={{ backgroundColor: 'rgba(204,34,34,0.1)', border: '1px solid rgba(204,34,34,0.3)' }}>
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#CC2222' }} />
-                <p className="text-sm" style={{ color: '#CC2222' }}>{spotError}</p>
+                style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
+                <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{spotError}</p>
               </div>
             )}
 
             <div className="space-y-2">
               {spots.length === 0 && (
-                <div className="text-center py-12 text-sm" style={{ color: 'rgba(122,122,122,0.4)' }}>
+                <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
                   No hay espacios de estacionamiento cargados
                 </div>
               )}
@@ -381,12 +381,12 @@ export default function Admin() {
                 return (
                   <div key={spot.id} className="rounded-xl px-4 py-3 transition-all duration-200"
                     style={{
-                      backgroundColor: '#141414',
+                      backgroundColor: 'var(--brand-surface)',
                       border: isOpen
-                        ? '1px solid rgba(201,168,76,0.5)'
+                        ? '1px solid rgb(var(--brand-accent-rgb) / 0.5)'
                         : spot.member_id
-                          ? '1px solid rgba(201,168,76,0.28)'
-                          : '1px solid rgba(201,168,76,0.12)',
+                          ? '1px solid rgb(var(--brand-accent-rgb) / 0.28)'
+                          : '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
                     }}>
 
                     {/* Spot header */}
@@ -395,10 +395,10 @@ export default function Admin() {
                         <div className="flex items-center justify-center rounded-xl flex-shrink-0 transition-all duration-200"
                           style={{
                             width: 38, height: 38,
-                            backgroundColor: spot.member_id ? 'rgba(201,168,76,0.12)' : '#0D0D0D',
-                            border: spot.member_id ? '1px solid rgba(201,168,76,0.4)' : '1px solid rgba(201,168,76,0.15)',
+                            backgroundColor: spot.member_id ? 'rgb(var(--brand-accent-rgb) / 0.12)' : 'var(--brand-bg)',
+                            border: spot.member_id ? '1px solid rgb(var(--brand-accent-rgb) / 0.4)' : '1px solid rgb(var(--brand-accent-rgb) / 0.15)',
                           }}>
-                          <span className="font-display text-sm" style={{ color: '#C9A84C' }}>{spot.spot_number}</span>
+                          <span className="font-display text-sm" style={{ color: 'var(--brand-accent)' }}>{spot.spot_number}</span>
                         </div>
                         <div className="min-w-0">
                           {spot.nombre ? (
@@ -406,12 +406,12 @@ export default function Admin() {
                               <p className="text-white font-semibold text-sm truncate">
                                 {spot.nombre} {spot.apellido}
                               </p>
-                              <p className="text-xs" style={{ color: '#7A7A7A' }}>
+                              <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
                                 {spot.patente || 'Sin patente'}
                               </p>
                             </>
                           ) : (
-                            <p className="text-sm italic" style={{ color: 'rgba(122,122,122,0.5)' }}>Sin asignar</p>
+                            <p className="text-sm italic" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.5)' }}>Sin asignar</p>
                           )}
                         </div>
                       </div>
@@ -449,8 +449,8 @@ export default function Admin() {
 
                     {/* Member picker */}
                     {isOpen && (
-                      <div className="mt-3 pt-3 animate-slide-up" style={{ borderTop: '1px solid rgba(201,168,76,0.12)' }}>
-                        <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgba(201,168,76,0.6)' }}>
+                      <div className="mt-3 pt-3 animate-slide-up" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
+                        <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.6)' }}>
                           Seleccionar jugador
                         </p>
                         <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -460,7 +460,7 @@ export default function Admin() {
                               onClick={() => handleAssign(spot.id, m.id)}
                               className="w-full text-left rounded-lg px-3 py-2.5 text-sm bg-[rgba(201,168,76,0.05)] border border-[rgba(201,168,76,0.1)] text-[#F5F5F0] transition-all duration-150 active:scale-[0.98] hover:bg-[rgba(201,168,76,0.13)] hover:border-[rgba(201,168,76,0.3)] hover:text-[#E8D49E]">
                               <span className="font-semibold">{m.nombre} {m.apellido}</span>
-                              {m.patente && <span className="ml-2 text-xs" style={{ color: '#7A7A7A' }}>{m.patente}</span>}
+                              {m.patente && <span className="ml-2 text-xs" style={{ color: 'var(--brand-muted)' }}>{m.patente}</span>}
                             </button>
                           ))}
                         </div>
@@ -473,7 +473,7 @@ export default function Admin() {
 
             {spots.length > 0 && (
               <p className="text-center text-xs mt-6 tracking-widest uppercase"
-                style={{ color: 'rgba(201,168,76,0.25)' }}>
+                style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
                 {spots.filter(s => s.member_id).length} / {spots.length} espacios asignados
               </p>
             )}

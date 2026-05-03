@@ -204,7 +204,7 @@ export default function CheckIn() {
   if (status === 'already') {
     return (
       <div className="min-h-screen bg-brand-bg flex flex-col">
-        <div className="h-1.5 w-full animate-fade-in" style={{ background: '#C9A84C' }} />
+        <div className="h-1.5 w-full animate-fade-in" style={{ background: 'var(--brand-accent)' }} />
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-24 h-24 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mb-6 animate-scale-in">
             <svg className="w-10 h-10 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -224,7 +224,7 @@ export default function CheckIn() {
             Volver
           </button>
         </div>
-        <div className="h-1.5 w-full" style={{ background: '#C9A84C' }} />
+        <div className="h-1.5 w-full" style={{ background: 'var(--brand-accent)' }} />
       </div>
     );
   }
@@ -290,7 +290,7 @@ export default function CheckIn() {
         <button
           onClick={() => setStatus('scanning')}
           className="mt-10 w-full max-w-xs py-4 rounded-2xl font-display tracking-widest text-white text-lg active:scale-95 transition-transform animate-slide-up-d2"
-          style={{ backgroundColor: '#CC2222', boxShadow: '0 0 24px rgba(204,34,34,0.4)' }}
+          style={{ backgroundColor: 'var(--brand-primary)', boxShadow: '0 0 24px rgb(var(--brand-primary-rgb) / 0.4)' }}
         >
           ESCANEAR QR
         </button>
