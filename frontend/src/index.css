@@ -46,6 +46,11 @@
   --brand-muted-rgb: 90 90 90;
 }
 
+/* Shield stays black & white — no gold or invert filters */
+[data-theme="escudo"] img[alt="Estelares Futsal"] {
+  filter: none !important;
+}
+
 /* Buttons with brand-primary background become near-white → text must be dark */
 [data-theme="escudo"] button[style*="brand-primary"],
 [data-theme="escudo"] .btn-red {
