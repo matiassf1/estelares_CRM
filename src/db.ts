@@ -46,10 +46,12 @@ export async function initDb(): Promise<void> {
     );
   `);
 
-  // Prevents duplicate check-ins on the same day (race-condition safe)
+  // Prevents duplicate check-ins on the same local day (race-condition safe).
+  // Uses a fixed -03:00 offset (Argentina, no DST) because AT TIME ZONE is
+  // STABLE and PostgreSQL requires IMMUTABLE expressions in index definitions.
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uniq_member_checkin_day
-      ON check_ins (member_id, DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires'));
+      ON check_ins (member_id, CAST((checked_in_at - INTERVAL '3 hours') AS DATE));
   `);
 
   const { rows } = await pool.query('SELECT COUNT(*) as count FROM admins');
