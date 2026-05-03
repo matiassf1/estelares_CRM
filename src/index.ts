@@ -13,6 +13,7 @@ import parkingRoutes from './routes/parking';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1); // Railway termina SSL en el proxy
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173',

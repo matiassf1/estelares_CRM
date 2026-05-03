@@ -5,9 +5,9 @@ import { getCurrentToken, secondsUntilNext } from '../utils/token';
 
 const router = Router();
 
-router.get('/qr', authMiddleware, requireRole('admin', 'portero'), async (_req, res) => {
+router.get('/qr', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
   const token = getCurrentToken();
-  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const appUrl = `${req.protocol}://${req.get('host')}`;
   const url = `${appUrl}/check-in?t=${token}`;
 
   const qrDataUrl = await QRCode.toDataURL(url, {
