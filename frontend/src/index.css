@@ -115,6 +115,7 @@ body::after {
     -55deg, transparent 0px, transparent 6px,
     rgba(255,255,255,0.016) 6px, rgba(255,255,255,0.016) 7px
   );
+  background-attachment: fixed;
 }
 
 /* ── Inputs — always dark background, always white text ── */
