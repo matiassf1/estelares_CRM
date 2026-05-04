@@ -41,7 +41,7 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
 });
 
 router.get('/today-status', authMiddleware, requireRole('member'), async (req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const { rows } = await pool.query(
     `SELECT checked_in_at FROM check_ins WHERE member_id = $1 AND DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
     [req.user!.id, today]
@@ -54,7 +54,7 @@ router.get('/today-status', authMiddleware, requireRole('member'), async (req, r
 });
 
 router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const { rows } = await pool.query(
     `SELECT m.nombre, m.apellido, m.patente, c.checked_in_at
      FROM check_ins c

@@ -49,10 +49,6 @@ export default function Login() {
         <div
           className="absolute inset-0 pattern-lines opacity-20 animate-diagonal-in"
         />
-        <div
-          className="absolute bottom-0 left-0 right-0 h-12"
-          style={{ backgroundColor: 'var(--brand-bg)', clipPath: 'polygon(0 100%, 100% 0, 100% 100%)' }}
-        />
 
         <div className="relative z-10 flex flex-col items-center animate-slide-up-far">
           <ClubShield size={92} className="mb-4 animate-shield-glow-white" variant="white" />
