@@ -5,6 +5,42 @@ import { api, CheckInEntry } from '../lib/api.ts';
 import { useCountUp } from '../hooks/useCountUp.ts';
 import ClubShield from '../components/ClubShield.tsx';
 
+function VehicleIcon({ tipo }: { tipo?: string | null }) {
+  if (!tipo) return null;
+  if (tipo === 'moto') return (
+    <span title="Moto" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.15)', color: 'var(--brand-accent)' }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="5.5" cy="17.5" r="3.5" /><circle cx="18.5" cy="17.5" r="3.5" />
+        <path d="M8 17.5h7M15 17.5l-3-6h-2l-2 3h2" /><path d="M17 10l-2-3h-4" />
+      </svg>
+      Moto
+    </span>
+  );
+  if (tipo === 'auto') return (
+    <span title="Auto" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 17H3a1 1 0 01-1-1v-4l2-5h14l2 5v4a1 1 0 01-1 1h-2" />
+        <circle cx="7.5" cy="17.5" r="2.5" /><circle cx="16.5" cy="17.5" r="2.5" />
+        <path d="M5 12h14" />
+      </svg>
+      Auto
+    </span>
+  );
+  if (tipo === 'bicicleta') return (
+    <span title="Bicicleta" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: 'rgba(34,197,94,0.1)', color: 'rgb(34,197,94)' }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="5" cy="17" r="3" /><circle cx="19" cy="17" r="3" />
+        <path d="M12 17V9l-3 3m3-3l3 3" /><path d="M9 17l3-8h5" />
+      </svg>
+      Bici
+    </span>
+  );
+  return null;
+}
+
 export default function Portero() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -184,9 +220,12 @@ export default function Portero() {
                         <p className="text-white text-sm font-semibold">
                           {entry.nombre} {entry.apellido}
                         </p>
-                        {entry.patente && (
-                          <p className="text-brand-muted text-xs mt-0.5">{entry.patente}</p>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {entry.patente && (
+                            <p className="text-brand-muted text-xs">{entry.patente}</p>
+                          )}
+                          <VehicleIcon tipo={entry.tipo_vehiculo} />
+                        </div>
                       </div>
                     </div>
                     <span className="text-brand-muted text-xs font-mono">{formatTime(entry.checked_in_at)}</span>

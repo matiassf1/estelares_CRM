@@ -57,7 +57,7 @@ router.get('/today-status', authMiddleware, requireRole('member'), async (req, r
 router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
   const today = todayArgentina();
   const { rows } = await pool.query(
-    `SELECT m.nombre, m.apellido, m.patente, c.checked_in_at
+    `SELECT m.nombre, m.apellido, m.patente, m.tipo_vehiculo, c.checked_in_at
      FROM check_ins c
      JOIN members m ON c.member_id = m.id
      WHERE DATE(c.checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $1

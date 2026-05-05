@@ -39,6 +39,17 @@ export async function initDb(): Promise<void> {
   await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS foto_url TEXT;`);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS categorias (
+      id     SERIAL PRIMARY KEY,
+      nombre VARCHAR(50) UNIQUE NOT NULL,
+      orden  INT DEFAULT 0
+    );
+  `);
+
+  await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL;`);
+  await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS tipo_vehiculo VARCHAR(15);`);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS parking_spots (
       id           SERIAL PRIMARY KEY,
       spot_number  VARCHAR(20) UNIQUE NOT NULL,

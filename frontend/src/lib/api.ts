@@ -21,6 +21,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+export interface Categoria {
+  id: number;
+  nombre: string;
+  orden: number;
+}
+
 export interface Member {
   id: string;
   nombre: string;
@@ -29,6 +35,9 @@ export interface Member {
   patente?: string;
   foto_url?: string;
   activo: boolean;
+  tipo_vehiculo?: string | null;
+  categoria_id?: number | null;
+  categoria_nombre?: string | null;
 }
 
 export interface ParkingSpot {
@@ -44,6 +53,7 @@ export interface CheckInEntry {
   nombre: string;
   apellido: string;
   patente?: string;
+  tipo_vehiculo?: string | null;
   checked_in_at: string;
 }
 
@@ -81,7 +91,7 @@ export const api = {
   getMembers: () =>
     request<Member[]>('/admin/members'),
 
-  createMember: (data: { nombre: string; apellido: string; dni: string; patente?: string; password: string }) =>
+  createMember: (data: { nombre: string; apellido: string; dni: string; patente?: string; password: string; categoria_id?: number | null; tipo_vehiculo?: string | null }) =>
     request<Member>('/admin/members', { method: 'POST', body: JSON.stringify(data) }),
 
   updateMember: (id: string, data: Partial<Member & { password: string }>) =>
@@ -92,6 +102,15 @@ export const api = {
 
   getStats: () =>
     request<{ today: number; total: number }>('/admin/stats'),
+
+  getCategorias: () =>
+    request<Categoria[]>('/categorias'),
+
+  createCategoria: (nombre: string) =>
+    request<Categoria>('/categorias', { method: 'POST', body: JSON.stringify({ nombre }) }),
+
+  deleteCategoria: (id: number) =>
+    request<{ ok: boolean }>(`/categorias/${id}`, { method: 'DELETE' }),
 
   getParkingSpots: () =>
     request<ParkingSpot[]>('/parking'),

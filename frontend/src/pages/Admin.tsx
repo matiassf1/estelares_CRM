@@ -1,19 +1,57 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { api, Member, ParkingSpot } from '../lib/api.ts';
+import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
 import { compressImage } from '../utils/image.ts';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
 
-type FormData = { nombre: string; apellido: string; dni: string; patente: string; password: string; foto_url: string };
-const emptyForm: FormData = { nombre: '', apellido: '', dni: '', patente: '', password: '', foto_url: '' };
+type FormData = {
+  nombre: string; apellido: string; dni: string; patente: string;
+  password: string; foto_url: string; categoria_id: string; tipo_vehiculo: string;
+};
+const emptyForm: FormData = {
+  nombre: '', apellido: '', dni: '', patente: '',
+  password: '', foto_url: '', categoria_id: '', tipo_vehiculo: '',
+};
+
+const VEHICULOS = [
+  { value: '', label: 'Ninguno' },
+  { value: 'auto', label: 'Auto' },
+  { value: 'moto', label: 'Moto' },
+  { value: 'bicicleta', label: 'Bici' },
+];
+
+function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
+  if (!tipo) return null;
+  if (tipo === 'moto') return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5.5" cy="17.5" r="3.5" /><circle cx="18.5" cy="17.5" r="3.5" />
+      <path d="M8 17.5h7M15 17.5l-3-6h-2l-2 3h2" /><path d="M17 10l-2-3h-4" />
+    </svg>
+  );
+  if (tipo === 'auto') return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 17H3a1 1 0 01-1-1v-4l2-5h14l2 5v4a1 1 0 01-1 1h-2" />
+      <circle cx="7.5" cy="17.5" r="2.5" /><circle cx="16.5" cy="17.5" r="2.5" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+  if (tipo === 'bicicleta') return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="17" r="3" /><circle cx="19" cy="17" r="3" />
+      <path d="M12 17V9l-3 3m3-3l3 3" /><path d="M9 17l3-8h5" />
+    </svg>
+  );
+  return null;
+}
 
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'jugadores' | 'parking'>('jugadores');
+  const [tab, setTab] = useState<'jugadores' | 'categorias' | 'parking'>('jugadores');
   const [members, setMembers] = useState<Member[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -30,9 +68,14 @@ export default function Admin() {
   const [addingSpot, setAddingSpot] = useState(false);
   const [assigningSpotId, setAssigningSpotId] = useState<number | null>(null);
 
+  // Categorias state
+  const [newCategoria, setNewCategoria] = useState('');
+  const [catError, setCatError] = useState('');
+  const [addingCat, setAddingCat] = useState(false);
+
   const load = useCallback(async () => {
-    const [m, s] = await Promise.all([api.getMembers(), api.getStats()]);
-    setMembers(m); setStats(s);
+    const [m, s, c] = await Promise.all([api.getMembers(), api.getStats(), api.getCategorias()]);
+    setMembers(m); setStats(s); setCategorias(c);
   }, []);
 
   const loadSpots = useCallback(async () => {
@@ -46,7 +89,12 @@ export default function Admin() {
     setForm(emptyForm); setEditingId(null); setFormError(''); setShowForm(true);
   };
   const openEdit = (m: Member) => {
-    setForm({ nombre: m.nombre, apellido: m.apellido, dni: m.dni, patente: m.patente || '', password: '', foto_url: m.foto_url || '' });
+    setForm({
+      nombre: m.nombre, apellido: m.apellido, dni: m.dni,
+      patente: m.patente || '', password: '', foto_url: m.foto_url || '',
+      categoria_id: m.categoria_id ? String(m.categoria_id) : '',
+      tipo_vehiculo: m.tipo_vehiculo || '',
+    });
     setEditingId(m.id); setFormError(''); setShowForm(true);
   };
 
@@ -60,12 +108,17 @@ export default function Admin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setFormError(''); setSaving(true);
     try {
+      const payload = {
+        ...form,
+        categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
+        tipo_vehiculo: form.tipo_vehiculo || null,
+      };
       if (editingId) {
-        const p: Partial<Member & { password: string; foto_url: string }> = { ...form };
+        const p = { ...payload } as Partial<Member & { password: string }>;
         if (!form.password) delete p.password;
         await api.updateMember(editingId, p);
       } else {
-        await api.createMember(form);
+        await api.createMember(payload);
       }
       setShowForm(false); setEditingId(null); load();
     } catch (err) {
@@ -99,14 +152,24 @@ export default function Admin() {
     await api.assignParking(spotId, memberId);
     setAssigningSpotId(null); loadSpots();
   };
-
-  const handleUnassign = async (spotId: number) => {
-    await api.unassignParking(spotId); loadSpots();
-  };
-
+  const handleUnassign = async (spotId: number) => { await api.unassignParking(spotId); loadSpots(); };
   const handleDeleteSpot = async (spot: ParkingSpot) => {
     if (!confirm(`¿Eliminar espacio ${spot.spot_number}?`)) return;
     await api.deleteParking(spot.id); loadSpots();
+  };
+
+  const handleAddCategoria = async (e: React.FormEvent) => {
+    e.preventDefault(); setCatError(''); setAddingCat(true);
+    try {
+      await api.createCategoria(newCategoria.trim());
+      setNewCategoria(''); load();
+    } catch (err) {
+      setCatError(err instanceof Error ? err.message : 'Error');
+    } finally { setAddingCat(false); }
+  };
+  const handleDeleteCategoria = async (c: Categoria) => {
+    if (!confirm(`¿Eliminar categoría "${c.nombre}"?\nLos jugadores de esta categoría quedarán sin categoría asignada.`)) return;
+    await api.deleteCategoria(c.id); load();
   };
 
   const filtered = members.filter(m =>
@@ -159,34 +222,32 @@ export default function Admin() {
 
         {/* ── Tabs ── */}
         <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
-          {(['jugadores', 'parking'] as const).map(t => (
+          {(['jugadores', 'categorias', 'parking'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
               style={tab === t
                 ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
                 : { color: 'var(--brand-muted)' }}>
-              {t === 'jugadores' ? 'Jugadores' : 'Estacionamientos'}
+              {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
             </button>
           ))}
         </div>
 
         {/* ── TAB CONTENT ── */}
         <div key={tab} className="animate-fade-in">
+
+        {/* ──────────── JUGADORES ──────────── */}
         {tab === 'jugadores' && (
           <>
             <div className="flex gap-2 mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
               <input
-                type="text"
-                placeholder="Buscar jugador..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                type="text" placeholder="Buscar jugador..."
+                value={search} onChange={e => setSearch(e.target.value)}
                 className="input-field flex-1"
               />
-              <button
-                onClick={openCreate}
+              <button onClick={openCreate}
                 className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
-              >
+                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
                 + AGREGAR
               </button>
             </div>
@@ -207,13 +268,12 @@ export default function Admin() {
                     style={{ color: 'var(--brand-muted)' }}>✕</button>
                 </div>
 
+                {/* Photo */}
                 <div className="flex items-center gap-4 mb-5 pb-5"
                   style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
-                  <div
-                    onClick={() => fileRef.current?.click()}
+                  <div onClick={() => fileRef.current?.click()}
                     className="rounded-2xl cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all active:scale-95"
-                    style={{ width: 72, height: 72, backgroundColor: 'var(--brand-bg)', border: '2px dashed rgb(var(--brand-accent-rgb) / 0.3)' }}
-                  >
+                    style={{ width: 72, height: 72, backgroundColor: 'var(--brand-bg)', border: '2px dashed rgb(var(--brand-accent-rgb) / 0.3)' }}>
                     {form.foto_url ? (
                       <img src={form.foto_url} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -236,17 +296,53 @@ export default function Admin() {
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
                 </div>
 
+                {/* Name fields */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <Input label="Nombre" {...f('nombre')} placeholder="Nombre" required />
                   <Input label="Apellido" {...f('apellido')} placeholder="Apellido" required />
                 </div>
+
                 <div className="space-y-3">
                   <Input label="DNI" {...f('dni')} placeholder="12345678" inputMode="numeric" required={!editingId} />
                   <Input label="Patente" {...f('patente')} placeholder="AB 123 CD (opcional)" />
+
+                  {/* Categoría */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Categoría</p>
+                    <select
+                      value={form.categoria_id}
+                      onChange={e => setForm(prev => ({ ...prev, categoria_id: e.target.value }))}
+                      className="input-field w-full"
+                      style={{ backgroundColor: 'var(--brand-bg)', color: form.categoria_id ? 'white' : 'var(--brand-muted)' }}>
+                      <option value="">Sin categoría</option>
+                      {categorias.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Tipo de vehículo */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Vehículo</p>
+                    <div className="flex gap-2">
+                      {VEHICULOS.map(v => (
+                        <button
+                          key={v.value}
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, tipo_vehiculo: v.value }))}
+                          className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
+                          style={form.tipo_vehiculo === v.value
+                            ? { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.2)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.5)' }
+                            : { backgroundColor: 'var(--brand-bg)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <Input
                     label={editingId ? 'Nueva contraseña' : 'Contraseña'}
-                    type="password"
-                    {...f('password')}
+                    type="password" {...f('password')}
                     placeholder={editingId ? 'Dejar vacío para no cambiar' : '••••••••'}
                     required={!editingId}
                   />
@@ -282,8 +378,7 @@ export default function Admin() {
                 </div>
               )}
               {filtered.map((m, i) => (
-                <div key={m.id}
-                  className="rounded-xl px-4 py-3 transition-all"
+                <div key={m.id} className="rounded-xl px-4 py-3 transition-all"
                   style={{
                     backgroundColor: 'var(--brand-surface)',
                     border: m.activo ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
@@ -301,9 +396,22 @@ export default function Admin() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-white font-semibold text-sm truncate">{m.nombre} {m.apellido}</p>
-                        <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                          DNI {m.dni}{m.patente ? ` · ${m.patente}` : ''}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                            DNI {m.dni}{m.patente ? ` · ${m.patente}` : ''}
+                          </p>
+                          {m.tipo_vehiculo && (
+                            <span style={{ color: 'var(--brand-muted)' }}>
+                              <VehicleIcon tipo={m.tipo_vehiculo} size={12} />
+                            </span>
+                          )}
+                          {m.categoria_nombre && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold tracking-wide"
+                              style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.12)', color: 'var(--brand-accent)' }}>
+                              {m.categoria_nombre}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0 items-center">
@@ -340,24 +448,79 @@ export default function Admin() {
           </>
         )}
 
-        {/* ── PARKING TAB ── */}
-        {tab === 'parking' && (
+        {/* ──────────── CATEGORÍAS ──────────── */}
+        {tab === 'categorias' && (
           <>
-            {/* Add spot form */}
-            <form onSubmit={handleAddSpot} className="flex gap-2 mb-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <form onSubmit={handleAddCategoria} className="flex gap-2 mb-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
               <input
-                type="text"
-                placeholder="Número de espacio (ej. A1)"
-                value={newSpotNumber}
-                onChange={e => setNewSpotNumber(e.target.value)}
+                type="text" placeholder="Nombre de categoría (ej. Primera A)"
+                value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
                 className="input-field flex-1"
               />
-              <button
-                type="submit"
-                disabled={addingSpot || !newSpotNumber.trim()}
+              <button type="submit" disabled={addingCat || !newCategoria.trim()}
                 className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
-              >
+                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
+                + AGREGAR
+              </button>
+            </form>
+
+            {catError && (
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mb-4 animate-slide-up"
+                style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
+                <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{catError}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {categorias.length === 0 && (
+                <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+                  No hay categorías creadas
+                </div>
+              )}
+              {categorias.map(c => {
+                const count = members.filter(m => m.categoria_id === c.id).length;
+                return (
+                  <div key={c.id} className="rounded-xl px-4 py-3 flex items-center justify-between"
+                    style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+                    <div>
+                      <p className="text-white font-semibold text-sm">{c.nombre}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+                        {count} jugador{count !== 1 ? 'es' : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeleteCategoria(c)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {categorias.length > 0 && (
+              <p className="text-center text-xs mt-6 tracking-widest uppercase"
+                style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
+                {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* ──────────── PARKING ──────────── */}
+        {tab === 'parking' && (
+          <>
+            <form onSubmit={handleAddSpot} className="flex gap-2 mb-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <input
+                type="text" placeholder="Número de espacio (ej. A1)"
+                value={newSpotNumber} onChange={e => setNewSpotNumber(e.target.value)}
+                className="input-field flex-1"
+              />
+              <button type="submit" disabled={addingSpot || !newSpotNumber.trim()}
+                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
+                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
                 + AGREGAR
               </button>
             </form>
@@ -388,8 +551,6 @@ export default function Admin() {
                           ? '1px solid rgb(var(--brand-accent-rgb) / 0.28)'
                           : '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
                     }}>
-
-                    {/* Spot header */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex items-center justify-center rounded-xl flex-shrink-0 transition-all duration-200"
@@ -403,23 +564,17 @@ export default function Admin() {
                         <div className="min-w-0">
                           {spot.nombre ? (
                             <>
-                              <p className="text-white font-semibold text-sm truncate">
-                                {spot.nombre} {spot.apellido}
-                              </p>
-                              <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                                {spot.patente || 'Sin patente'}
-                              </p>
+                              <p className="text-white font-semibold text-sm truncate">{spot.nombre} {spot.apellido}</p>
+                              <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>{spot.patente || 'Sin patente'}</p>
                             </>
                           ) : (
                             <p className="text-sm italic" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.5)' }}>Sin asignar</p>
                           )}
                         </div>
                       </div>
-
                       <div className="flex gap-2 flex-shrink-0 items-center">
                         {!spot.member_id && (
-                          <button
-                            onClick={() => setAssigningSpotId(isOpen ? null : spot.id)}
+                          <button onClick={() => setAssigningSpotId(isOpen ? null : spot.id)}
                             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(201,168,76,0.35)] text-[#C9A84C] transition-all duration-150 active:scale-90 hover:bg-[rgba(201,168,76,0.22)] hover:border-[rgba(201,168,76,0.6)] hover:text-[#E8D49E] ${isOpen ? 'bg-[rgba(201,168,76,0.18)]' : 'bg-[rgba(201,168,76,0.08)]'}`}>
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               {isOpen
@@ -446,8 +601,6 @@ export default function Admin() {
                         </button>
                       </div>
                     </div>
-
-                    {/* Member picker */}
                     {isOpen && (
                       <div className="mt-3 pt-3 animate-slide-up" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
                         <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.6)' }}>
@@ -455,9 +608,7 @@ export default function Admin() {
                         </p>
                         <div className="space-y-1 max-h-48 overflow-y-auto">
                           {members.filter(m => m.activo).map(m => (
-                            <button
-                              key={m.id}
-                              onClick={() => handleAssign(spot.id, m.id)}
+                            <button key={m.id} onClick={() => handleAssign(spot.id, m.id)}
                               className="w-full text-left rounded-lg px-3 py-2.5 text-sm bg-[rgba(201,168,76,0.05)] border border-[rgba(201,168,76,0.1)] text-[#F5F5F0] transition-all duration-150 active:scale-[0.98] hover:bg-[rgba(201,168,76,0.13)] hover:border-[rgba(201,168,76,0.3)] hover:text-[#E8D49E]">
                               <span className="font-semibold">{m.nombre} {m.apellido}</span>
                               {m.patente && <span className="ml-2 text-xs" style={{ color: 'var(--brand-muted)' }}>{m.patente}</span>}

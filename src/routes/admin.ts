@@ -9,13 +9,17 @@ router.use(authMiddleware, requireRole('admin'));
 
 router.get('/members', async (_req, res) => {
   const { rows } = await pool.query(
-    'SELECT id, nombre, apellido, dni, patente, foto_url, activo, created_at FROM members ORDER BY apellido, nombre'
+    `SELECT m.id, m.nombre, m.apellido, m.dni, m.patente, m.foto_url, m.activo,
+            m.tipo_vehiculo, m.categoria_id, c.nombre AS categoria_nombre
+     FROM members m
+     LEFT JOIN categorias c ON m.categoria_id = c.id
+     ORDER BY m.apellido, m.nombre`
   );
   res.json(rows);
 });
 
 router.post('/members', async (req, res) => {
-  const { nombre, apellido, dni, patente, password, foto_url } = req.body;
+  const { nombre, apellido, dni, patente, password, foto_url, categoria_id, tipo_vehiculo } = req.body;
   if (!nombre || !apellido || !dni || !password) {
     res.status(400).json({ error: 'nombre, apellido, dni y password son requeridos' });
     return;
@@ -23,8 +27,10 @@ router.post('/members', async (req, res) => {
   const hash = await bcrypt.hash(String(password), 10);
   try {
     const { rows } = await pool.query(
-      'INSERT INTO members (nombre, apellido, dni, patente, password_hash, foto_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, nombre, apellido, dni, patente, foto_url, activo',
-      [nombre, apellido, String(dni), patente || null, hash, foto_url || null]
+      `INSERT INTO members (nombre, apellido, dni, patente, password_hash, foto_url, categoria_id, tipo_vehiculo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, nombre, apellido, dni, patente, foto_url, activo, tipo_vehiculo, categoria_id`,
+      [nombre, apellido, String(dni), patente || null, hash, foto_url || null, categoria_id || null, tipo_vehiculo || null]
     );
     res.status(201).json(rows[0]);
   } catch (err: unknown) {
@@ -43,13 +49,15 @@ router.put('/members/:id', async (req, res) => {
   const values: unknown[] = [];
   let i = 1;
 
-  const { foto_url } = req.body;
+  const { foto_url, categoria_id, tipo_vehiculo } = req.body;
   if (nombre !== undefined) { fields.push(`nombre=$${i++}`); values.push(nombre); }
   if (apellido !== undefined) { fields.push(`apellido=$${i++}`); values.push(apellido); }
   if (dni !== undefined) { fields.push(`dni=$${i++}`); values.push(String(dni)); }
   if (patente !== undefined) { fields.push(`patente=$${i++}`); values.push(patente || null); }
   if (activo !== undefined) { fields.push(`activo=$${i++}`); values.push(activo); }
   if (foto_url !== undefined) { fields.push(`foto_url=$${i++}`); values.push(foto_url || null); }
+  if (categoria_id !== undefined) { fields.push(`categoria_id=$${i++}`); values.push(categoria_id || null); }
+  if (tipo_vehiculo !== undefined) { fields.push(`tipo_vehiculo=$${i++}`); values.push(tipo_vehiculo || null); }
   if (password) { fields.push(`password_hash=$${i++}`); values.push(await bcrypt.hash(String(password), 10)); }
 
   if (!fields.length) {
@@ -59,7 +67,7 @@ router.put('/members/:id', async (req, res) => {
 
   values.push(req.params.id);
   const { rows } = await pool.query(
-    `UPDATE members SET ${fields.join(', ')} WHERE id=$${i} RETURNING id, nombre, apellido, dni, patente, foto_url, activo`,
+    `UPDATE members SET ${fields.join(', ')} WHERE id=$${i} RETURNING id, nombre, apellido, dni, patente, foto_url, activo, tipo_vehiculo, categoria_id`,
     values
   );
   res.json(rows[0]);

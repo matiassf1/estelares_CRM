@@ -9,6 +9,7 @@ import checkinRoutes from './routes/checkin';
 import porteroRoutes from './routes/portero';
 import adminRoutes from './routes/admin';
 import parkingRoutes from './routes/parking';
+import categoriasRoutes from './routes/categorias';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,7 @@ app.use('/api/check-in', checkinRoutes);
 app.use('/api/portero', porteroRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/parking', parkingRoutes);
+app.use('/api/categorias', categoriasRoutes);
 
 const frontendPath = path.join(__dirname, '../public');
 app.use(express.static(frontendPath));
