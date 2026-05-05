@@ -15,11 +15,11 @@ export function getCurrentToken(): string {
 
 export function isValidToken(token: string): boolean {
   const currentWindow = Math.floor(Date.now() / 1000 / WINDOW_SECONDS);
-  // Accept current and previous window (grace period for scanning delay)
-  for (let i = 0; i <= 1; i++) {
+  // Accept ±1 window to handle clock skew in both directions (90s grace total)
+  for (let offset = -1; offset <= 1; offset++) {
     const valid = crypto
       .createHmac('sha256', QR_SECRET)
-      .update((currentWindow - i).toString())
+      .update((currentWindow + offset).toString())
       .digest('hex')
       .slice(0, 10);
     if (valid === token) return true;

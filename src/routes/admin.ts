@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
+import { todayArgentina } from '../utils/time';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
@@ -70,7 +71,7 @@ router.delete('/members/:id', async (req, res) => {
 });
 
 router.get('/stats', async (_req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayArgentina();
   const [{ rows: todayRows }, { rows: totalRows }] = await Promise.all([
     pool.query(
       `SELECT COUNT(*) as count FROM check_ins WHERE DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $1`,
