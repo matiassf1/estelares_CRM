@@ -63,9 +63,10 @@ router.get('/me', authMiddleware, async (req, res) => {
               ps.spot_number AS estacionamiento
        FROM members m
        LEFT JOIN parking_spots ps ON ps.member_id = m.id
-       WHERE m.id = $1`,
+       WHERE m.id = $1 AND m.activo = true`,
       [id]
     );
+    if (!rows[0]) { res.status(401).json({ error: 'Cuenta desactivada' }); return; }
     res.json({ type, ...rows[0] });
   } else {
     const { rows } = await pool.query(

@@ -17,6 +17,12 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
 
   // INSERT atómico: el unique index en (member_id, DATE) garantiza
   // que dos requests simultáneas no produzcan check-ins duplicados.
+  const { rows: memberRows } = await pool.query('SELECT activo FROM members WHERE id = $1', [memberId]);
+  if (!memberRows[0]?.activo) {
+    res.status(403).json({ error: 'Cuenta desactivada' });
+    return;
+  }
+
   let inserted: { rowCount: number | null };
   try {
     inserted = await pool.query(
