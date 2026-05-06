@@ -7,6 +7,93 @@ import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 type Mode = 'member' | 'staff';
 
+function SuspendedScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen pattern-lines flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>
+      {/* Hero */}
+      <div className="relative flex flex-col items-center justify-end pt-14 pb-16 overflow-hidden">
+        <div className="absolute inset-0 animate-diagonal-in"
+          style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 55%, transparent 55%)' }} />
+        <div className="absolute inset-0 pattern-lines opacity-20 animate-diagonal-in" />
+        <div className="relative z-10 flex flex-col items-center animate-slide-up-far">
+          <ClubShield size={92} className="mb-4 animate-shield-glow-white" variant="white" />
+          <h1 className="font-display text-white tracking-widest" style={{ fontSize: '2.6rem', lineHeight: 1, letterSpacing: '0.14em' }}>ESTELARES</h1>
+          <p className="font-display tracking-[0.4em] text-sm mt-1 gold-glow" style={{ color: 'var(--brand-accent)' }}>FUTSAL</p>
+        </div>
+      </div>
+
+      {/* Card */}
+      <div className="relative z-10 flex-1 flex flex-col items-center px-5 -mt-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
+
+          {/* Status badge */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
+              style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.12)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
+              <svg className="w-7 h-7" style={{ color: 'var(--brand-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="font-display text-white tracking-widest text-xl">ACCESO SUSPENDIDO</h2>
+            <p className="text-xs text-center mt-2 leading-relaxed" style={{ color: 'var(--brand-muted)' }}>
+              Tu cuenta en Estelares Futsal está temporalmente deshabilitada.
+            </p>
+          </div>
+
+          <div className="divider-red mb-5" />
+
+          <div className="space-y-3">
+            {/* Opción 1: Deuda / situación pendiente */}
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.18)' }}>
+              <p className="text-white text-sm font-semibold mb-1">¿Tenés algo pendiente con el club?</p>
+              <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--brand-muted)' }}>
+                Contactá al administrador para regularizar tu situación y reactivar tu acceso.
+              </p>
+              <a
+                href="https://wa.me/54XXXXXXXXXX"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'rgb(37,211,102,0.12)', color: 'rgb(37,211,102)', border: '1px solid rgb(37,211,102,0.3)' }}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Contactar administrador
+              </a>
+            </div>
+
+            {/* Opción 2: Error / estás al día */}
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.18)' }}>
+              <p className="text-white text-sm font-semibold mb-1">¿Estás al día y esto es un error?</p>
+              <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--brand-muted)' }}>
+                Contactá a soporte técnico para que podamos resolver el problema.
+              </p>
+              <a
+                href="https://wa.me/54XXXXXXXXXX"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.1)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.3)' }}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Contactar soporte
+              </a>
+            </div>
+          </div>
+
+          <button onClick={onBack} className="w-full mt-4 py-2 text-xs uppercase tracking-widest transition-colors active:text-white"
+            style={{ color: 'var(--brand-muted)' }}>
+            ← Volver al inicio
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Mode = 'member' | 'staff';
+
 export default function Login() {
   const [mode, setMode] = useState<Mode>('member');
   const [dni, setDni] = useState('');
@@ -14,6 +101,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suspended, setSuspended] = useState(false);
   const { login, adminLogin } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -31,11 +119,18 @@ export default function Login() {
         navigate('/', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al ingresar');
+      const msg = err instanceof Error ? err.message : 'Error al ingresar';
+      if (msg === 'Cuenta suspendida') {
+        setSuspended(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (suspended) return <SuspendedScreen onBack={() => setSuspended(false)} />;
 
   return (
     <div className="min-h-screen pattern-lines flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>

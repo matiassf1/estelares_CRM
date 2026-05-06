@@ -20,13 +20,15 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(400).json({ error: 'DNI y contraseña requeridos' });
     return;
   }
-  const { rows } = await pool.query(
-    'SELECT * FROM members WHERE dni = $1 AND activo = true',
-    [String(dni)]
-  );
+  const { rows } = await pool.query('SELECT * FROM members WHERE dni = $1', [String(dni)]);
   const member = rows[0];
+  // Validate credentials first so brute-forcers always get 401
   if (!member || !(await bcrypt.compare(String(password), member.password_hash))) {
     res.status(401).json({ error: 'DNI o contraseña incorrectos' });
+    return;
+  }
+  if (!member.activo) {
+    res.status(403).json({ error: 'Cuenta suspendida' });
     return;
   }
   const token = signToken({ id: member.id, type: 'member' });
