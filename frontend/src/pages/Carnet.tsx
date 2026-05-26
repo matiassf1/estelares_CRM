@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api.ts';
 import ClubShield from '../components/ClubShield.tsx';
-import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 interface TodayStatus { ingresado: boolean; hora?: string; }
 interface CarnetData {
@@ -50,7 +49,6 @@ export default function Carnet({ mock }: Props) {
             <div />
           )}
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
               Salir
             </button>

@@ -4,9 +4,7 @@ type Theme = 'clasico' | 'escudo';
 const KEY = 'estelares_theme';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(KEY) as Theme) || 'clasico'
-  );
+  const [theme, setTheme] = useState<Theme>('escudo');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

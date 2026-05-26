@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
-import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 type Mode = 'member' | 'staff';
 
@@ -91,8 +90,6 @@ function SuspendedScreen({ onBack }: { onBack: () => void }) {
     </div>
   );
 }
-
-type Mode = 'member' | 'staff';
 
 export default function Login() {
   const [mode, setMode] = useState<Mode>('member');
@@ -247,9 +244,6 @@ export default function Login() {
         <p className="text-xs py-6 tracking-widest animate-fade-in" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.3)', animationDelay: '0.4s' }}>
           ESTELARES FUTSAL © 2012
         </p>
-        <div className="pb-6 animate-fade-in" style={{ animationDelay: '0.45s' }}>
-          <ThemeToggle />
-        </div>
       </div>
     </div>
   );
