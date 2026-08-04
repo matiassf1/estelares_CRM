@@ -1,190 +1,178 @@
-# Design: QR fijo del carnet + escaneo portero + hardening API
+# Design: Ingreso por carnet (flujo único) + hardening API
 
 **Date:** 2026-08-03  
-**Status:** Approved in conversation (model + section 2); hardening scope = option A  
-**Goal:** Socios sin datos pueden mostrar un QR fijo del carnet (o captura); el portero lo escanea y registra el ingreso. Mantener el flujo actual del QR rotativo. Endurecer el backend contra abuso básico de API.
+**Status:** Product decision = **A** (solo portero escanea); UX = pulido, calmo, moderno  
+**Goal:** Un solo ritual de ingreso. El socio muestra el QR del carnet; el portero escanea. Sin preguntar “¿quién escanea?”. Endurecer el backend contra abuso básico de API (opción A).
 
 ## Context
 
-- Hoy el ingreso exige que el **socio** tenga red (`POST /api/check-in` con token rotativo).
-- El portero siempre tiene internet; los socios a veces no.
-- Ideal operativo: el socio abre el carnet en casa (o guarda captura del QR) y en la puerta el portero escanea.
-- Ya existe corrección de timezone para “ingresos hoy” (`CAST((checked_in_at - INTERVAL '3 hours') AS DATE)`).
+- El portero siempre tiene internet; los socios a menudo no.
+- Dos flujos en paralelo confunden en la puerta.
+- Ideal: el socio abre el carnet en casa (o guarda captura del QR fijo) y en la cancha solo lo muestra.
+- Ya existe corrección de timezone para “ingresos hoy”.
 
 ## Non-goals
 
-- Mitigación DDoS a nivel red/borde (Cloudflare, etc.) — queda fuera; se documenta como mejora futura.
-- Reemplazar el QR rotativo del club (se mantiene).
-- Cola offline de tokens rotativos en el celular del socio.
-- Búsqueda manual por DNI en esta iteración (puede agregarse después).
-- Cambiar el schema de `check_ins` a `TIMESTAMPTZ` (fuera de alcance).
+- Flujo dual / QR rotativo del club como camino de ingreso diario.
+- Mitigación DDoS en el borde (Cloudflare) — mejora futura.
+- Búsqueda manual por DNI en esta iteración.
+- Cola offline de tokens rotativos.
+- Migración a `TIMESTAMPTZ`.
 
 ---
 
-## 1. Product model
+## 1. Product model (flujo único)
 
-| Actor | Flujo |
+**Ritual:** socio muestra carnet (app o captura) → portero apunta → confirmación breve → listo.
+
+| Actor | Acción |
 |---|---|
-| Socio con datos | Escanea QR rotativo del portero → `POST /api/check-in` (igual que hoy) |
-| Socio sin datos | Muestra QR fijo del carnet (app offline o captura) → portero escanea → `POST /api/check-in/by-member` |
+| Socio | Abre carnet (idealmente en casa) / guarda captura del QR fijo. En la puerta **solo muestra**. |
+| Portero | Pantalla siempre lista para escanear. No elige “modo”. |
 
-Mensaje UX en carnet (corto): indicar que conviene abrir el carnet con internet antes de salir / guardar captura del QR.
+- El QR rotativo del club **deja de ser el ingreso**. Se puede dejar el endpoint `/api/portero/qr` sin UI, o retirarlo en el mismo PR si no lo usa nadie más.
+- Ruta `/check-in` del socio (escanear QR del club) **sale del flujo principal**: quitar CTA “ESCANEAR QR” del carnet; redirigir o mostrar mensaje corto “Mostrá este carnet al portero” si alguien entra a `/check-in` con bookmark viejo.
 
 ---
 
-## 2. Member QR payload
+## 2. UX principles (pulido, no torpe)
 
-**Format (string inside QR):**
+- **Una composición, un trabajo:** Portero = escanear + ver últimos ingresos. Carnet = identidad + QR para mostrar.
+- **Sin ruido:** nada de toggles “Escanear socio / QR club”, pills, badges flotantes, ni textos largos.
+- **Feedback cinematográfico corto:** éxito ~1.2–1.8s a pantalla completa suave, luego vuelve solo al visor. Sin modales de confirmación.
+- **Motion con intención (2–3):** (1) línea/marco de escaneo sutil en idle, (2) flash/confirmación de ingreso, (3) entrada del nuevo item en la lista.
+- **Marca:** tipografía display existente (`Bebas Neue` / `font-display`), paleta brand actual (tema activo del club). El QR es blanco sobre superficie oscura o bloque claro contenido — alto contraste, no sticker flotante.
+- **Accesible en cola:** targets grandes, texto mínimo, legible de noche.
+
+---
+
+## 3. Pantalla Portero (rediseño)
+
+### Layout (mobile-first, tablet listo)
+
+```
+┌─────────────────────────────┐
+│  Estelares · Portero   Salir│
+│                             │
+│     ┌─────────────────┐     │
+│     │                 │     │
+│     │   VIEWFINDER    │     │  ← cámara full-bleed en el bloque
+│     │   (siempre on)  │     │
+│     │                 │     │
+│     └─────────────────┘     │
+│        Ingresos  12         │  ← un número, tipografía display
+│                             │
+│   Últimos                   │
+│   · Nombre Apellido  21:04  │
+│   · …                       │
+└─────────────────────────────┘
+```
+
+### Estados del viewfinder (sin “modos”)
+
+| Estado | Qué se ve |
+|---|---|
+| **Idle / buscando** | Cámara + marco fino + hint de una línea: “Apuntá al carnet”. Scan-line suave (ya existe animación). |
+| **Leyendo** | Breve hold (evitar doble submit); sin spinner agresivo. |
+| **Éxito** | Overlay full del bloque: nombre grande + “INGRESÓ”, acento brand, haptic/vibra si disponible. Auto-dismiss ~1.5s → idle. |
+| **Ya ingresó** | Mismo lenguaje visual pero tono muted / “YA ESTABA”. Auto-dismiss. |
+| **Error** | “QR no válido” / “Cuenta inactiva” — corto, auto-dismiss. |
+
+### Detalles de interacción
+
+- Un solo `processingRef` / lock: un scan a la vez.
+- Tras éxito, reiniciar detección limpia (no re-leer el mismo frame en loop).
+- Lista “Últimos” con flash suave en el nuevo (reusar `animate-gold-flash` o equivalente calmado).
+- Contador “Ingresos” con count-up existente.
+- **No** mostrar countdown ni QR rotativo.
+
+---
+
+## 4. Pantalla Carnet (socio)
+
+### Qué cambia
+
+- El carnet gana un **bloque QR fijo** como pieza clara de “mostrar en la puerta” — debajo de los datos / status, integrado al card (no tarjeta aparte ruidosa).
+- Quitar botón **ESCANEAR QR** (flujo viejo).
+- Status:
+  - No ingresado: texto calmado tipo “Mostrá tu QR al portero” (no CTA de cámara).
+  - Ingresado: mantener “INGRESADO HOY” + hora.
+- Hint de una línea (muted): “Podés guardar una captura si no vas a tener datos.”
+- Offline banner existente se mantiene.
+
+### Generación del QR
+
+- `/api/auth/me` incluye `member_qr: "estelares:m:<id>:<sig>"`.
+- Cliente renderiza con `qrcode` (dep en frontend) y cachea `member_qr` en `estelares_user` para offline.
+- QR alto contraste, margen generoso, tamaño cómodo para escanear a ~30–50 cm.
+
+---
+
+## 5. Member QR payload
 
 ```text
 estelares:m:<member_id>:<sig>
 ```
 
-- `member_id`: UUID del socio.
-- `sig`: primeros 10 hex de `HMAC-SHA256(QR_SECRET, "m:" + member_id)`.
-- Reutilizar `QR_SECRET` existente (mismo secret que el QR rotativo). Si en el futuro se quiere rotar secretos de carnet por separado, se puede introducir `MEMBER_QR_SECRET` sin cambiar el formato.
-
-**Validation (server):**
-1. Parse prefix `estelares:m:`.
-2. Split `member_id` + `sig`.
-3. Recompute HMAC; compare en tiempo constante (`crypto.timingSafeEqual` sobre buffers de igual largo).
-4. Reject if malformed or signature mismatch → `400` “QR inválido”.
-
-**Security notes:**
-- No poner solo el UUID en el QR (aunque sea difícil de adivinar); la firma evita forjar códigos.
-- El QR es **estable** en el tiempo → apto para captura de pantalla.
-- Comprometer `QR_SECRET` permitiría forjar carnets y tokens rotativos; rotación de secret implica re-login / regenerar QRs (aceptable a escala club).
+- `sig` = primeros 10 hex de `HMAC-SHA256(QR_SECRET, "m:" + member_id)`.
+- Validación server: parse + `timingSafeEqual`.
+- Fijo en el tiempo → apto para captura.
 
 ---
 
-## 3. Backend API
+## 6. Backend API
 
 ### `POST /api/check-in/by-member`
 
-- **Auth:** `authMiddleware` + `requireRole('admin', 'portero')`.
-- **Body:** `{ payload: string }` (contenido crudo del QR) **o** `{ memberId, sig }` — preferir `{ payload }` para un solo campo desde el scanner.
-- **Steps:**
-  1. Validar firma del payload.
-  2. Verificar `members.activo` para ese id.
-  3. `INSERT INTO check_ins (member_id, token_used) VALUES ($1, $2) ON CONFLICT DO NOTHING`.
-     - `token_used`: `'p' + sig` (11 chars; cabe en `VARCHAR(20)`). Distingue ingresos portero vs token rotativo.
-  4. Si `rowCount = 0` → `409` “Ya registró ingreso hoy”.
-  5. Success → `200` `{ ok: true, member: { nombre, apellido, patente } }` (mismo shape útil que el check-in de socio para UI).
+- Auth: `admin` | `portero`.
+- Body: `{ payload: string }`.
+- Validar firma → socio activo → `INSERT ... ON CONFLICT DO NOTHING`.
+- `token_used`: `'p' + sig` (≤ 20 chars).
+- Responses: 200 + member / 409 ya hoy / 400 inválido / 403 inactivo / 500.
 
-### Shared helpers
+### Helpers
 
-- `src/utils/memberQr.ts`: `buildMemberQrPayload(memberId)`, `parseAndVerifyMemberQr(payload)`.
-- Reutilizar lógica de insert / conflicto del check-in actual donde sea razonable (sin over-abstracting).
+- `src/utils/memberQr.ts`: `buildMemberQrPayload`, `parseAndVerifyMemberQr`.
 
-### Existing endpoints
+### Legacy
 
-- `POST /api/check-in` — sin cambios de contrato.
-- `GET /api/check-in/today`, `/today-status`, `/api/admin/stats` — sin cambios (ya usan día Argentina alineado al índice).
+- `POST /api/check-in` (socio + token rotativo): **deprecar en UI**; endpoint puede quedar un release por compatibilidad o eliminarse si `/check-in` ya no lo llama. Preferencia: **dejar endpoint** por un deploy, **quitar UI**; cleanup en follow-up si no hay tráfico.
+- `GET /api/portero/qr`: sin UI; cleanup follow-up.
 
 ---
 
-## 4. Frontend
+## 7. Hardening (opción A)
 
-### Carnet (`Carnet.tsx`)
+| Medida | Detalle |
+|---|---|
+| Rate limit global `/api/*` | ~120 req/min/IP; excluir `GET /api/health` |
+| Rate limit login | Mantener el actual |
+| Rate limit check-in writes | ~30/min/IP en `POST /check-in` y `/check-in/by-member` |
+| Pool PG | `max` ~10, `connectionTimeoutMillis` 5s, `statement_timeout` ~5s |
+| Body | Seguir con `json` 100kb; validar presence/tipo en writes |
+| Helmet + error handler | Mantener |
 
-- Incluir `id` en el tipo de usuario cacheado (`AuthUser`) si falta tipado.
-- Generar QR en cliente con librería `qrcode` (ya usada en backend; agregar dependencia en `frontend` **o** pedir data-URL a un endpoint autenticado).
-  - **Decisión:** generar en **cliente** a partir de payload firmado.
-  - El payload firmado debe venir del **servidor** (el cliente no tiene `QR_SECRET`).
-  - Por lo tanto: `GET /api/auth/me` (o endpoint dedicado `GET /api/auth/member-qr`) incluye `member_qr: "estelares:m:..."`; el cliente renderiza ese string a imagen QR y lo cachea en `localStorage` junto al user.
-- Hint de texto bajo el QR (captura / abrir en casa).
-- Offline: si `member_qr` está en cache, mostrar QR sin red.
-
-### Portero (`Portero.tsx`)
-
-- Mantener QR rotativo + lista de ingresos.
-- Agregar modo **“Escanear socio”**:
-  - Cámara + `jsQR` (mismo patrón que `CheckIn.tsx`).
-  - Al detectar payload `estelares:m:...`, llamar `api.checkInByMember(payload)`.
-  - Feedback: éxito (nombre), ya ingresó, error.
-  - Volver al modo QR del club al cerrar el scanner.
-
-### API client
-
-- `api.checkInByMember(payload: string)`.
+Fuera de alcance: Cloudflare, CAPTCHA, rotación formal de secretos.
 
 ---
 
-## 5. Hardening (opción A)
+## 8. Verification
 
-Alcance práctico en Express + Postgres pool. **No** incluye WAF/Cloudflare.
-
-### Rate limiting (`express-rate-limit`)
-
-| Limitador | Scope | Guía inicial |
-|---|---|---|
-| Global `/api/*` | Todas las rutas API | ~120 req / min / IP |
-| Auth login | Ya existe (20 / 15 min) — mantener o alinear | Sin aflojar |
-| Check-in writes | `POST /api/check-in`, `POST /api/check-in/by-member` | ~30 / min / IP |
-
-- `app.set('trust proxy', 1)` ya está (Railway) — necesario para IP correcta.
-- Excluir `GET /api/health` del limit global (healthchecks de Railway).
-
-### Pool / DB
-
-En `Pool` config:
-- `max`: p.ej. 10 (hobby Railway).
-- `connectionTimeoutMillis`: 5000.
-- `idleTimeoutMillis`: 30000.
-- `statement_timeout` vía `options: '-c statement_timeout=5000'` o `SET` en connect — evita queries colgadas saturen el pool.
-
-### Request hygiene
-
-- Mantener `express.json({ limit: '100kb' })`.
-- Mantener `helmet` + error handler sin stack al cliente.
-- Validar tipos/presence de body en endpoints de escritura (reject early 400).
-
-### Out of scope (documentado)
-
-- Cloudflare / rate limit en el edge.
-- CAPTCHA.
-- Migración a `TIMESTAMPTZ`.
-- Auditoría de backups / secret rotation playbook completo.
+1. Carnet online → QR visible → captura.
+2. Airplane mode → carnet/caché o captura usable.
+3. Portero escanea → overlay éxito → figura en lista y contador.
+4. Segundo scan mismo día → “YA ESTABA”.
+5. Payload alterado → error corto.
+6. No hay QR rotativo ni CTA “escanear” en carnet.
+7. Burst API → 429; healthcheck OK para Railway.
 
 ---
-
-## 6. Error handling & UX
-
-| Caso | HTTP | Mensaje (ES) |
-|---|---|---|
-| Payload malformado / firma mala | 400 | QR inválido |
-| Socio inactivo | 403 | Cuenta desactivada |
-| Ya check-in hoy | 409 | Ya registró ingreso hoy |
-| Rate limit | 429 | Demasiados intentos, esperá un momento |
-| Error DB | 500 | Error al registrar el ingreso |
-
-Portero UI: estados success / already / error análogos al CheckIn del socio.
-
----
-
-## 7. Testing / verification
-
-Manual:
-1. Login socio online → carnet muestra QR → captura de pantalla.
-2. Airplane mode → carnet (PWA/cache) o captura sigue usable.
-3. Portero escanea → aparece en “Ingresos hoy”; segundo scan → 409.
-4. Socio con datos sigue ingresando con QR rotativo.
-5. Payload con firma alterada → 400.
-6. Burst de requests a `/api/check-in` → 429.
-7. Healthcheck `/api/health` no rate-limiteado de forma que tumbe el deploy.
-
----
-
-## 8. Rollout
-
-1. Deploy backend+frontend juntos (payload en `/me` + UI carnet + portero + limits).
-2. Avisar a Pilo: abrir carnet en casa / captura; portero usa “Escanear socio” si no hay datos.
-3. Observar Railway HTTP logs: `POST /api/check-in/by-member` y contadores.
 
 ## 9. Implementation order
 
-1. `memberQr` utils + `POST /check-in/by-member` + `member_qr` en `/me`.
+1. `memberQr` utils + `member_qr` en `/me` + `POST /check-in/by-member`.
 2. Rate limits + pool timeouts.
-3. Frontend carnet QR + cache.
-4. Frontend portero scanner mode.
-5. Smoke test manual / deploy.
+3. Carnet: QR + quitar CTA viejo + copy.
+4. Portero: rediseño viewfinder-first (retirar QR rotativo de UI).
+5. Soft-landing `/check-in` legacy.
+6. Smoke + deploy.
