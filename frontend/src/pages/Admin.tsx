@@ -46,6 +46,46 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
+function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: number }) {
+  const players = members
+    .filter(m => m.categoria_id === categoriaId)
+    .sort((a, b) => {
+      const apellidoA = (a.apellido || '').toLowerCase();
+      const apellidoB = (b.apellido || '').toLowerCase();
+      if (apellidoA !== apellidoB) return apellidoA.localeCompare(apellidoB, 'es');
+      return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase(), 'es');
+    });
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1"
+      style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
+    >
+      {players.length === 0 ? (
+        <p className="text-xs py-2" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+          Sin jugadores asignados
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {players.map(m => (
+            <span
+              key={m.id}
+              className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={{
+                backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)',
+                border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)',
+                color: 'var(--brand-muted)',
+              }}
+            >
+              {m.apellido} {m.nombre}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
