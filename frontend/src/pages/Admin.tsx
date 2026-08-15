@@ -46,7 +46,116 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
-function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: number }) {
+function PlayerActions({
+  member, categorias, onUpdateMember, onClose,
+}: {
+  member: Member;
+  categorias: Categoria[];
+  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const handleToggleActivo = async () => {
+    setLoading('activo');
+    await onUpdateMember(member.id, { activo: !member.activo });
+    setLoading(null);
+    onClose();
+  };
+
+  const handleCategoriaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    const newCatId = val === '' ? null : parseInt(val);
+    setLoading('cat');
+    await onUpdateMember(member.id, { categoria_id: newCatId });
+    setLoading(null);
+  };
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1 flex flex-col gap-2"
+      style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.03)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+    >
+      {/* Ver detalle */}
+      <button
+        className="flex items-center gap-2 text-xs py-1.5 text-left w-full"
+        style={{ color: 'var(--brand-muted)' }}
+        onClick={() => setShowDetail(v => !v)}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        Ver detalle
+      </button>
+
+      {showDetail && (
+        <div className="rounded-lg px-3 py-2 text-xs flex flex-col gap-1"
+          style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.06)', color: 'var(--brand-muted)' }}>
+          <span><span className="opacity-50">DNI:</span> {member.dni}</span>
+          {member.patente && <span><span className="opacity-50">Patente:</span> {member.patente}</span>}
+          <span><span className="opacity-50">Categoría:</span> {member.categoria_nombre || '—'}</span>
+        </div>
+      )}
+
+      {/* Cambiar categoría */}
+      <div className="flex items-center gap-2">
+        <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--brand-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+        <select
+          className="flex-1 text-xs rounded-lg px-2 py-1.5 appearance-none"
+          style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)', color: 'var(--brand-muted)' }}
+          value={member.categoria_id ?? ''}
+          onChange={handleCategoriaChange}
+          disabled={loading === 'cat'}
+        >
+          <option value="">Sin categoría</option>
+          {categorias.map(c => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        {loading === 'cat' && (
+          <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Guardando…</span>
+        )}
+      </div>
+
+      {/* Activar / Desactivar */}
+      <button
+        className="flex items-center gap-2 text-xs py-1.5 text-left w-full"
+        style={{ color: member.activo ? '#e74c3c' : '#27ae60' }}
+        onClick={handleToggleActivo}
+        disabled={loading === 'activo'}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={member.activo
+            ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+            : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
+        </svg>
+        {loading === 'activo' ? 'Guardando…' : member.activo ? 'Desactivar jugador' : 'Activar jugador'}
+      </button>
+    </div>
+  );
+}
+
+function avatarColor(name: string): string {
+  const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function PlayerList({
+  members, categoriaId, categorias, onUpdateMember,
+}: {
+  members: Member[];
+  categoriaId: number;
+  categorias: Categoria[];
+  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
+}) {
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+
   const players = members
     .filter(m => m.categoria_id === categoriaId)
     .sort((a, b) => {
@@ -57,29 +166,61 @@ function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: 
     });
 
   return (
-    <div
-      className="px-4 pb-3 pt-1"
-      style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
-    >
+    <div style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
       {players.length === 0 ? (
-        <p className="text-xs py-2" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+        <p className="text-xs px-4 py-3" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
           Sin jugadores asignados
         </p>
       ) : (
-        <div className="flex flex-wrap gap-1.5 pt-2">
-          {players.map(m => (
-            <span
-              key={m.id}
-              className="text-xs px-2.5 py-1 rounded-full font-medium"
-              style={{
-                backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)',
-                border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)',
-                color: 'var(--brand-muted)',
-              }}
-            >
-              {m.apellido} {m.nombre}
-            </span>
-          ))}
+        <div>
+          {players.map(m => {
+            const initials = `${(m.apellido || '')[0] || ''}${(m.nombre || '')[0] || ''}`.toUpperCase();
+            const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
+            const isOpen = expandedPlayer === m.id;
+            return (
+              <div key={m.id}>
+                <div
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors [&:first-child]:border-t-0"
+                  style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.06)' }}
+                  onClick={() => setExpandedPlayer(isOpen ? null : m.id)}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    {initials}
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-white">
+                    {m.apellido}, {m.nombre}
+                  </span>
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    style={m.activo
+                      ? { backgroundColor: 'rgb(39 174 96 / 0.15)', color: '#27ae60', border: '1px solid rgb(39 174 96 / 0.3)' }
+                      : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }
+                    }
+                  >
+                    {m.activo ? 'Activo' : 'Inactivo'}
+                  </span>
+                  <svg
+                    className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200"
+                    style={{ color: 'var(--brand-muted)', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                {isOpen && (
+                  <PlayerActions
+                    member={m}
+                    categorias={categorias}
+                    onUpdateMember={onUpdateMember}
+                    onClose={() => setExpandedPlayer(null)}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -167,6 +308,11 @@ export default function Admin() {
     } finally { setSaving(false); }
   };
 
+  const handlePlayerUpdate = async (id: string, changes: Partial<Member>) => {
+    await api.updateMember(id, changes);
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
+  };
+
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
   const handleDelete = async (m: Member) => {
     if (!confirm(`¿Eliminar a ${m.nombre} ${m.apellido}?`)) return;
@@ -223,13 +369,14 @@ export default function Admin() {
       {/* ── Header ── */}
       <div className="sticky top-0 z-50 px-5 py-3 flex justify-between items-center"
         style={{ backgroundColor: 'var(--brand-surface)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 md:hidden">
           <ClubShield size={30} className="opacity-90" />
           <div>
             <p className="text-white text-sm font-semibold leading-tight">Estelares Futsal</p>
             <p className="text-xs leading-tight" style={{ color: 'var(--brand-muted)' }}>Panel Admin</p>
           </div>
         </div>
+        <div className="hidden md:block" />
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/portero')}
             className="text-xs font-semibold uppercase tracking-wider active:opacity-70"
@@ -244,10 +391,66 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="p-5 max-w-lg mx-auto">
+      <div className="flex min-h-[calc(100vh-56px)]">
+
+        {/* Sidebar — desktop only */}
+        <aside
+          className="hidden md:flex flex-col w-52 flex-shrink-0 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto"
+          style={{ backgroundColor: 'var(--brand-surface)', borderRight: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
+        >
+          <div className="px-5 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+            <ClubShield size={24} className="opacity-90" />
+            <div>
+              <p className="text-white text-xs font-semibold leading-tight">Estelares Futsal</p>
+              <p className="text-[10px] leading-tight" style={{ color: 'var(--brand-muted)' }}>Panel Admin</p>
+            </div>
+          </div>
+          <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
+            {(['jugadores', 'categorias', 'parking'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="flex items-center gap-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all text-left w-full"
+                style={tab === t
+                  ? { backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.12)', color: 'var(--brand-primary)', borderLeft: '2px solid var(--brand-primary)', paddingLeft: '10px' }
+                  : { color: 'var(--brand-muted)', borderLeft: '2px solid transparent', paddingLeft: '10px' }
+                }
+              >
+                {t === 'jugadores' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                ) : t === 'categorias' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                )}
+                {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
+              </button>
+            ))}
+          </nav>
+          <div className="px-5 py-4" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Ingresos hoy</span>
+                <span className="text-sm font-bold text-white">{stats.today}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Activos</span>
+                <span className="text-sm font-bold text-white">{stats.total}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex-1 p-5 md:p-8 min-w-0">
 
         {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-3 mb-6 mt-2">
+        <div className="grid grid-cols-2 gap-3 mb-6 mt-2 md:hidden">
           <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up"
             style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
             <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-primary)' }} />
@@ -262,7 +465,7 @@ export default function Admin() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
+        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
           {(['jugadores', 'categorias', 'parking'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
@@ -272,6 +475,13 @@ export default function Admin() {
               {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
             </button>
           ))}
+        </div>
+
+        {/* ── Desktop section title ── */}
+        <div className="hidden md:block mb-6 mt-2">
+          <h2 className="text-xl font-semibold text-white tracking-wide">
+            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : 'Parking'}
+          </h2>
         </div>
 
         {/* ── TAB CONTENT ── */}
@@ -560,7 +770,12 @@ export default function Admin() {
 
                     {/* Panel expandible de jugadores */}
                     {isExpanded && (
-                      <PlayerList members={members} categoriaId={c.id} />
+                      <PlayerList
+                        members={members}
+                        categoriaId={c.id}
+                        categorias={categorias}
+                        onUpdateMember={handlePlayerUpdate}
+                      />
                     )}
                   </div>
                 );
@@ -697,6 +912,7 @@ export default function Admin() {
             )}
           </>
         )}
+        </div>
         </div>
       </div>
     </div>
