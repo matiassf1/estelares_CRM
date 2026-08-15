@@ -46,7 +46,23 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
-function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: number }) {
+function avatarColor(name: string): string {
+  const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function PlayerList({
+  members, categoriaId, categorias, onUpdateMember,
+}: {
+  members: Member[];
+  categoriaId: number;
+  categorias: Categoria[];
+  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
+}) {
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+
   const players = members
     .filter(m => m.categoria_id === categoriaId)
     .sort((a, b) => {
@@ -57,29 +73,61 @@ function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: 
     });
 
   return (
-    <div
-      className="px-4 pb-3 pt-1"
-      style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
-    >
+    <div style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
       {players.length === 0 ? (
-        <p className="text-xs py-2" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+        <p className="text-xs px-4 py-3" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
           Sin jugadores asignados
         </p>
       ) : (
-        <div className="flex flex-wrap gap-1.5 pt-2">
-          {players.map(m => (
-            <span
-              key={m.id}
-              className="text-xs px-2.5 py-1 rounded-full font-medium"
-              style={{
-                backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)',
-                border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)',
-                color: 'var(--brand-muted)',
-              }}
-            >
-              {m.apellido} {m.nombre}
-            </span>
-          ))}
+        <div>
+          {players.map(m => {
+            const initials = `${(m.apellido || '')[0] || ''}${(m.nombre || '')[0] || ''}`.toUpperCase();
+            const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
+            const isOpen = expandedPlayer === m.id;
+            return (
+              <div key={m.id}>
+                <div
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors"
+                  style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.06)' }}
+                  onClick={() => setExpandedPlayer(isOpen ? null : m.id)}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    {initials}
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-white">
+                    {m.apellido}, {m.nombre}
+                  </span>
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    style={m.activo
+                      ? { backgroundColor: 'rgb(39 174 96 / 0.15)', color: '#27ae60', border: '1px solid rgb(39 174 96 / 0.3)' }
+                      : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }
+                    }
+                  >
+                    {m.activo ? 'Activo' : 'Inactivo'}
+                  </span>
+                  <svg
+                    className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200"
+                    style={{ color: 'var(--brand-muted)', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                {isOpen && (
+                  <PlayerActions
+                    member={m}
+                    categorias={categorias}
+                    onUpdateMember={onUpdateMember}
+                    onClose={() => setExpandedPlayer(null)}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -165,6 +213,11 @@ export default function Admin() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Error');
     } finally { setSaving(false); }
+  };
+
+  const handlePlayerUpdate = async (id: string, changes: Partial<Member>) => {
+    await api.updateMember(id, changes);
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
   };
 
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
@@ -560,7 +613,12 @@ export default function Admin() {
 
                     {/* Panel expandible de jugadores */}
                     {isExpanded && (
-                      <PlayerList members={members} categoriaId={c.id} />
+                      <PlayerList
+                        members={members}
+                        categoriaId={c.id}
+                        categorias={categorias}
+                        onUpdateMember={handlePlayerUpdate}
+                      />
                     )}
                   </div>
                 );
