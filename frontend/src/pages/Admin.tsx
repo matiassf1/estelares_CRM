@@ -46,6 +46,46 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
+function PlayerList({ members, categoriaId }: { members: Member[]; categoriaId: number }) {
+  const players = members
+    .filter(m => m.categoria_id === categoriaId)
+    .sort((a, b) => {
+      const apellidoA = (a.apellido || '').toLowerCase();
+      const apellidoB = (b.apellido || '').toLowerCase();
+      if (apellidoA !== apellidoB) return apellidoA.localeCompare(apellidoB, 'es');
+      return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase(), 'es');
+    });
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1"
+      style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
+    >
+      {players.length === 0 ? (
+        <p className="text-xs py-2" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+          Sin jugadores asignados
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {players.map(m => (
+            <span
+              key={m.id}
+              className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={{
+                backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)',
+                border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)',
+                color: 'var(--brand-muted)',
+              }}
+            >
+              {m.apellido} {m.nombre}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -72,6 +112,7 @@ export default function Admin() {
   const [newCategoria, setNewCategoria] = useState('');
   const [catError, setCatError] = useState('');
   const [addingCat, setAddingCat] = useState(false);
+  const [expandedCat, setExpandedCat] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const [m, s, c] = await Promise.all([api.getMembers(), api.getStats(), api.getCategorias()]);
@@ -480,21 +521,47 @@ export default function Admin() {
               )}
               {categorias.map(c => {
                 const count = members.filter(m => m.categoria_id === c.id).length;
+                const isExpanded = expandedCat === c.id;
                 return (
-                  <div key={c.id} className="rounded-xl px-4 py-3 flex items-center justify-between"
+                  <div key={c.id} className="rounded-xl overflow-hidden"
                     style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-                    <div>
-                      <p className="text-white font-semibold text-sm">{c.nombre}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
-                        {count} jugador{count !== 1 ? 'es' : ''}
-                      </p>
+                    {/* Fila principal clickeable */}
+                    <div
+                      className="px-4 py-3 flex items-center justify-between cursor-pointer select-none"
+                      onClick={() => setExpandedCat(isExpanded ? null : c.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg
+                          className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200"
+                          style={{
+                            color: 'var(--brand-muted)',
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                          }}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                        <div>
+                          <p className="text-white font-semibold text-sm">{c.nombre}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+                            {count} jugador{count !== 1 ? 'es' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDeleteCategoria(c); }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
-                    <button onClick={() => handleDeleteCategoria(c)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+
+                    {/* Panel expandible de jugadores */}
+                    {isExpanded && (
+                      <PlayerList members={members} categoriaId={c.id} />
+                    )}
                   </div>
                 );
               })}
