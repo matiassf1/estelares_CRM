@@ -369,13 +369,14 @@ export default function Admin() {
       {/* ── Header ── */}
       <div className="sticky top-0 z-50 px-5 py-3 flex justify-between items-center"
         style={{ backgroundColor: 'var(--brand-surface)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 md:hidden">
           <ClubShield size={30} className="opacity-90" />
           <div>
             <p className="text-white text-sm font-semibold leading-tight">Estelares Futsal</p>
             <p className="text-xs leading-tight" style={{ color: 'var(--brand-muted)' }}>Panel Admin</p>
           </div>
         </div>
+        <div className="hidden md:block" />
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/portero')}
             className="text-xs font-semibold uppercase tracking-wider active:opacity-70"
@@ -390,10 +391,66 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="p-5 max-w-lg mx-auto">
+      <div className="flex min-h-[calc(100vh-56px)]">
+
+        {/* Sidebar — desktop only */}
+        <aside
+          className="hidden md:flex flex-col w-52 flex-shrink-0 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto"
+          style={{ backgroundColor: 'var(--brand-surface)', borderRight: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
+        >
+          <div className="px-5 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+            <ClubShield size={24} className="opacity-90" />
+            <div>
+              <p className="text-white text-xs font-semibold leading-tight">Estelares Futsal</p>
+              <p className="text-[10px] leading-tight" style={{ color: 'var(--brand-muted)' }}>Panel Admin</p>
+            </div>
+          </div>
+          <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
+            {(['jugadores', 'categorias', 'parking'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="flex items-center gap-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all text-left w-full"
+                style={tab === t
+                  ? { backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.12)', color: 'var(--brand-primary)', borderLeft: '2px solid var(--brand-primary)', paddingLeft: '10px' }
+                  : { color: 'var(--brand-muted)', borderLeft: '2px solid transparent', paddingLeft: '10px' }
+                }
+              >
+                {t === 'jugadores' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                ) : t === 'categorias' ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                )}
+                {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
+              </button>
+            ))}
+          </nav>
+          <div className="px-5 py-4" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Ingresos hoy</span>
+                <span className="text-sm font-bold text-white">{stats.today}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Activos</span>
+                <span className="text-sm font-bold text-white">{stats.total}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex-1 p-5 md:p-8 min-w-0">
 
         {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-3 mb-6 mt-2">
+        <div className="grid grid-cols-2 gap-3 mb-6 mt-2 md:hidden">
           <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up"
             style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
             <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-primary)' }} />
@@ -408,7 +465,7 @@ export default function Admin() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
+        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
           {(['jugadores', 'categorias', 'parking'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
@@ -418,6 +475,13 @@ export default function Admin() {
               {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
             </button>
           ))}
+        </div>
+
+        {/* ── Desktop section title ── */}
+        <div className="hidden md:block mb-6 mt-2">
+          <h2 className="text-xl font-semibold text-white tracking-wide">
+            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : 'Parking'}
+          </h2>
         </div>
 
         {/* ── TAB CONTENT ── */}
@@ -848,6 +912,7 @@ export default function Admin() {
             )}
           </>
         )}
+        </div>
         </div>
       </div>
     </div>
