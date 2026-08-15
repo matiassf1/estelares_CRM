@@ -46,6 +46,99 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
+function PlayerActions({
+  member, categorias, onUpdateMember, onClose,
+}: {
+  member: Member;
+  categorias: Categoria[];
+  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const handleToggleActivo = async () => {
+    setLoading('activo');
+    await onUpdateMember(member.id, { activo: !member.activo });
+    setLoading(null);
+    onClose();
+  };
+
+  const handleCategoriaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    const newCatId = val === '' ? null : parseInt(val);
+    setLoading('cat');
+    await onUpdateMember(member.id, { categoria_id: newCatId });
+    setLoading(null);
+  };
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1 flex flex-col gap-2"
+      style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.03)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+    >
+      {/* Ver detalle */}
+      <button
+        className="flex items-center gap-2 text-xs py-1.5 text-left w-full"
+        style={{ color: 'var(--brand-muted)' }}
+        onClick={() => setShowDetail(v => !v)}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        Ver detalle
+      </button>
+
+      {showDetail && (
+        <div className="rounded-lg px-3 py-2 text-xs flex flex-col gap-1"
+          style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.06)', color: 'var(--brand-muted)' }}>
+          <span><span className="opacity-50">DNI:</span> {member.dni}</span>
+          {member.patente && <span><span className="opacity-50">Patente:</span> {member.patente}</span>}
+          <span><span className="opacity-50">Categoría:</span> {member.categoria_nombre || '—'}</span>
+        </div>
+      )}
+
+      {/* Cambiar categoría */}
+      <div className="flex items-center gap-2">
+        <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--brand-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+        <select
+          className="flex-1 text-xs rounded-lg px-2 py-1.5 appearance-none"
+          style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)', color: 'var(--brand-muted)' }}
+          value={member.categoria_id ?? ''}
+          onChange={handleCategoriaChange}
+          disabled={loading === 'cat'}
+        >
+          <option value="">Sin categoría</option>
+          {categorias.map(c => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        {loading === 'cat' && (
+          <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Guardando…</span>
+        )}
+      </div>
+
+      {/* Activar / Desactivar */}
+      <button
+        className="flex items-center gap-2 text-xs py-1.5 text-left w-full"
+        style={{ color: member.activo ? '#e74c3c' : '#27ae60' }}
+        onClick={handleToggleActivo}
+        disabled={loading === 'activo'}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={member.activo
+            ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+            : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
+        </svg>
+        {loading === 'activo' ? 'Guardando…' : member.activo ? 'Desactivar jugador' : 'Activar jugador'}
+      </button>
+    </div>
+  );
+}
+
 function avatarColor(name: string): string {
   const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
   let hash = 0;
@@ -87,7 +180,7 @@ function PlayerList({
             return (
               <div key={m.id}>
                 <div
-                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors [&:first-child]:border-t-0"
                   style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.06)' }}
                   onClick={() => setExpandedPlayer(isOpen ? null : m.id)}
                 >
