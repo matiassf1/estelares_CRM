@@ -248,6 +248,7 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Parking state
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
@@ -276,6 +277,7 @@ export default function Admin() {
 
   const openCreate = () => {
     setForm(emptyForm); setEditingId(null); setFormError(''); setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
   const openEdit = (m: Member) => {
     setForm({
@@ -285,6 +287,7 @@ export default function Admin() {
       tipo_vehiculo: m.tipo_vehiculo || '',
     });
     setEditingId(m.id); setFormError(''); setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -511,7 +514,7 @@ export default function Admin() {
             </div>
 
             {showForm && (
-              <form onSubmit={handleSubmit} className="rounded-2xl p-5 mb-5 animate-slide-up"
+              <form ref={formRef} onSubmit={handleSubmit} className="rounded-2xl p-5 mb-5 animate-slide-up"
                 style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
 
                 <div className="flex items-center justify-between mb-5">
