@@ -88,6 +88,15 @@ export const api = {
   getPorteroQr: () =>
     request<{ qr: string; token: string; expiresIn: number }>('/portero/qr'),
 
+  getCarnetQr: () =>
+    request<{ qr: string }>('/portero/carnet-qr'),
+
+  checkInByMember: (member_id: string) =>
+    request<{ ok: boolean; member: { nombre: string; apellido: string }; already: boolean }>(
+      '/check-in/by-member',
+      { method: 'POST', body: JSON.stringify({ member_id }) }
+    ),
+
   getMembers: () =>
     request<Member[]>('/admin/members'),
 

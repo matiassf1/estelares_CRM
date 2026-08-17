@@ -18,6 +18,10 @@ export default function Carnet({ mock }: Props) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<TodayStatus | null>(mock?.status ?? null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(() => {
+    if (mock || !user?.id) return null;
+    return localStorage.getItem(`qr_cache_${user.id}`);
+  });
 
   const data: CarnetData = mock ?? user ?? {};
 
@@ -25,6 +29,18 @@ export default function Carnet({ mock }: Props) {
     if (mock) return;
     api.todayStatus().then(setStatus).catch(() => setStatus({ ingresado: false }));
   }, [mock]);
+
+  useEffect(() => {
+    if (mock || !user?.id) return;
+    api.getCarnetQr()
+      .then(({ qr }) => {
+        setQrDataUrl(qr);
+        localStorage.setItem(`qr_cache_${user.id}`, qr);
+      })
+      .catch(() => {
+        // offline — uses cache loaded in initial state
+      });
+  }, [mock, user?.id]);
 
   const horaIngreso = status?.hora
     ? new Date(status.hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -191,6 +207,29 @@ export default function Carnet({ mock }: Props) {
             </div>
           </div>
         </div>
+
+        {!mock && (
+          <div className="w-full max-w-sm mt-4 rounded-2xl overflow-hidden animate-slide-up"
+            style={{ animationDelay: '0.55s', backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+            <div className="px-5 py-4 flex flex-col items-center gap-3">
+              <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: 'var(--brand-accent)' }}>
+                Mostrá este código al portero
+              </p>
+              {qrDataUrl ? (
+                <div className="rounded-xl overflow-hidden p-3 bg-white">
+                  <img src={qrDataUrl} alt="QR personal" className="w-44 h-44 block" />
+                </div>
+              ) : (
+                <div className="w-44 h-44 rounded-xl animate-pulse flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--brand-surface-2)' }}>
+                  <p className="text-[10px] text-center px-4" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.5)' }}>
+                    Conectate para cargar tu QR
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {!mock && <OfflineBanner />}
       </div>
