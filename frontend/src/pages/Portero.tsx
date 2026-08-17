@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { api, CheckInEntry } from '../lib/api.ts';
 import { useCountUp } from '../hooks/useCountUp.ts';
 import ClubShield from '../components/ClubShield.tsx';
+import jsQR from 'jsqr';
 
 function VehicleIcon({ tipo }: { tipo?: string | null }) {
   if (!tipo) return null;
@@ -52,6 +53,15 @@ export default function Portero() {
   const prevCount = useRef(0);
   const animatedCount = useCountUp(checkIns.length, 600);
 
+  const [scanMode, setScanMode] = useState(false);
+  const [scanResult, setScanResult] = useState<{ ok: boolean; member: { nombre: string; apellido: string }; already: boolean } | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animFrameRef = useRef<number>(0);
+
   const fetchQr = useCallback(async () => {
     try {
       const data = await api.getPorteroQr();
@@ -90,6 +100,67 @@ export default function Portero() {
     const t = setInterval(fetchCheckIns, 5000);
     return () => clearInterval(t);
   }, [fetchCheckIns]);
+
+  const stopScanner = () => {
+    cancelAnimationFrame(animFrameRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setScanMode(false);
+    setScanResult(null);
+    setScanError(null);
+    setScanning(false);
+  };
+
+  const scanFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      animFrameRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code && /^[0-9a-f-]{36}$/i.test(code.data) && !scanning) {
+      setScanning(true);
+      cancelAnimationFrame(animFrameRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      api.checkInByMember(code.data)
+        .then(result => {
+          setScanResult(result);
+          setScanning(false);
+          setTimeout(() => stopScanner(), result.already ? 2000 : 2500);
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Error al registrar ingreso';
+          setScanError(msg);
+          setScanning(false);
+        });
+      return;
+    }
+    animFrameRef.current = requestAnimationFrame(scanFrame);
+  };
+
+  const startScanner = async () => {
+    setScanMode(true);
+    setScanResult(null);
+    setScanError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      scanFrame();
+    } catch {
+      setScanError('No se pudo acceder a la cámara');
+    }
+  };
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -164,6 +235,20 @@ export default function Portero() {
           </div>
         </div>
 
+        {/* Scan button */}
+        <div className="w-full max-w-xs flex justify-center animate-slide-up" style={{ animationDelay: '0.09s' }}>
+          <button
+            onClick={startScanner}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all active:scale-95"
+            style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.1)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.25)', color: 'var(--brand-accent)' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5V16M4 16v.5M4 20h4m12 0h.01M4 4h4m12 0h.01M4 8h.01M20 8h.01" />
+            </svg>
+            Escanear jugador
+          </button>
+        </div>
+
         {/* Stats */}
         <div
           className="w-full max-w-xs bg-brand-surface border border-brand-border rounded-xl px-5 py-3 flex items-center justify-between animate-slide-up"
@@ -236,6 +321,73 @@ export default function Portero() {
           )}
         </div>
       </div>
+
+      {scanMode && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: '#000' }}>
+          <video ref={videoRef} className="flex-1 object-cover w-full" playsInline muted />
+          <canvas ref={canvasRef} className="hidden" />
+
+          {(scanResult || scanError || scanning) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="rounded-2xl px-8 py-6 flex flex-col items-center gap-3 mx-6 text-center"
+                style={
+                  scanResult?.already
+                    ? { backgroundColor: 'rgb(217 119 6 / 0.95)' }
+                    : scanResult
+                    ? { backgroundColor: 'rgb(22 163 74 / 0.95)' }
+                    : scanError
+                    ? { backgroundColor: 'rgb(220 38 38 / 0.95)' }
+                    : { backgroundColor: 'rgb(0 0 0 / 0.85)' }
+                }
+              >
+                {scanning && !scanResult && !scanError && (
+                  <p className="text-white text-sm font-semibold">Procesando…</p>
+                )}
+                {scanResult && (
+                  <>
+                    <p className="text-white text-2xl font-bold">
+                      {scanResult.member.apellido}, {scanResult.member.nombre}
+                    </p>
+                    <p className="text-white text-sm font-semibold tracking-wider uppercase">
+                      {scanResult.already ? 'Ya ingresó hoy' : '✓ Ingreso registrado'}
+                    </p>
+                  </>
+                )}
+                {scanError && (
+                  <p className="text-white text-sm font-semibold">{scanError}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!scanResult && !scanError && !scanning && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-56 h-56 border-2 border-white rounded-2xl opacity-60" />
+            </div>
+          )}
+
+          <div className="absolute top-5 right-5">
+            <button
+              onClick={stopScanner}
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff' }}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {!scanResult && !scanError && (
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+              <p className="text-xs uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                Apuntá al QR del jugador
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
