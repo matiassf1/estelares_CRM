@@ -108,7 +108,7 @@ router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async
   }
 
   await pool.query(
-    'INSERT INTO check_ins (member_id) VALUES ($1) ON CONFLICT DO NOTHING',
+    "INSERT INTO check_ins (member_id, token_used) VALUES ($1, 'qr-scan') ON CONFLICT DO NOTHING",
     [member_id]
   );
 
