@@ -713,7 +713,7 @@ export default function Admin() {
         {/* ──────────── CATEGORÍAS ──────────── */}
         {tab === 'categorias' && (
           <>
-            <form onSubmit={handleAddCategoria} className="flex gap-2 mb-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <form onSubmit={handleAddCategoria} className="flex gap-2 mb-5 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5" style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
               <input
                 type="text" placeholder="Nombre de categoría (ej. Primera A)"
                 value={newCategoria} onChange={e => setNewCategoria(e.target.value)}

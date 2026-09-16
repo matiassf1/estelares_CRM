@@ -95,7 +95,7 @@ export default function Carnet({ mock }: Props) {
   const temporada = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen pattern-lines flex flex-col overflow-y-auto" style={{ backgroundColor: 'var(--brand-bg)' }}>
+    <div className="min-h-screen pattern-lines flex flex-col" style={{ backgroundColor: 'var(--brand-bg)' }}>
       {!mock && (
         <div className="flex justify-end items-center px-5 pt-5 pb-4 animate-fade-in">
           <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
