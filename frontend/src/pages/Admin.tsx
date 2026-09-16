@@ -277,7 +277,7 @@ export default function Admin() {
 
   const openCreate = () => {
     setForm(emptyForm); setEditingId(null); setFormError(''); setShowForm(true);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
   };
   const openEdit = (m: Member) => {
     setForm({
@@ -287,7 +287,7 @@ export default function Admin() {
       tipo_vehiculo: m.tipo_vehiculo || '',
     });
     setEditingId(m.id); setFormError(''); setShowForm(true);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
   };
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,7 +500,8 @@ export default function Admin() {
         {/* ──────────── JUGADORES ──────────── */}
         {tab === 'jugadores' && (
           <>
-            <div className="flex gap-2 mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <div className="flex gap-2 mb-4 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5"
+              style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
               <input
                 type="text" placeholder="Buscar jugador..."
                 value={search} onChange={e => setSearch(e.target.value)}
