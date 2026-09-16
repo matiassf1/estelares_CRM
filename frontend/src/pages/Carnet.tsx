@@ -97,24 +97,10 @@ export default function Carnet({ mock }: Props) {
   return (
     <div className="min-h-screen pattern-lines flex flex-col overflow-y-auto" style={{ backgroundColor: 'var(--brand-bg)' }}>
       {!mock && (
-        <div className="flex justify-between items-center px-5 pt-5 pb-4 animate-fade-in">
-          {!status?.ingresado ? (
-            <button onClick={() => navigate('/check-in')}
-              className="flex items-center gap-1.5 text-xs uppercase tracking-wider transition-colors active:text-white"
-              style={{ color: 'var(--brand-muted)' }}>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Ingresar
-            </button>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-3">
-            <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
-              Salir
-            </button>
-          </div>
+        <div className="flex justify-end items-center px-5 pt-5 pb-4 animate-fade-in">
+          <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
+            Salir
+          </button>
         </div>
       )}
 
