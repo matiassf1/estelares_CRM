@@ -109,8 +109,8 @@ export default function Carnet({ mock }: Props) {
           <div className="px-5 pt-2 pb-5" style={{ backgroundColor: 'var(--brand-surface)' }}>
 
             {/* Photo + name */}
-            <div className="relative z-10 flex items-end gap-4 -mt-10 mb-5">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 animate-scale-in"
+            <div className="relative z-10 flex items-end gap-4 -mt-12 mb-6">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 animate-scale-in"
                 style={{ border: '2px solid var(--brand-accent)', backgroundColor: 'var(--brand-surface-2)', animationDelay: '0.25s' }}>
                 {data.foto_url ? (
                   <img src={data.foto_url} alt={data.nombre} className="w-full h-full object-cover" />
@@ -139,15 +139,18 @@ export default function Carnet({ mock }: Props) {
 
             {/* Info chips */}
             <div className="grid grid-cols-2 gap-2 mb-4 animate-slide-up" style={{ animationDelay: '0.38s' }}>
-              {[
-                { label: 'DNI', value: data.dni || '—' },
-                { label: 'Patente', value: data.patente || '—' },
-              ].map(({ label, value }) => (
-                <div key={label} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.22)' }}>
-                  <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>{label}</p>
-                  <p className="text-white text-sm font-semibold tracking-wide">{value}</p>
+              <div className={`rounded-xl px-3 py-2.5${!data.patente ? ' col-span-2' : ''}`}
+                style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.28)' }}>
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>DNI</p>
+                <p className="text-white text-sm font-semibold tracking-wide">{data.dni || '—'}</p>
+              </div>
+              {data.patente && (
+                <div className="rounded-xl px-3 py-2.5"
+                  style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.28)' }}>
+                  <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>Patente</p>
+                  <p className="text-white text-sm font-semibold tracking-wide">{data.patente}</p>
                 </div>
-              ))}
+              )}
               {data.estacionamiento && (
                 <div className="col-span-2 rounded-xl px-3 py-2.5 flex items-center gap-3"
                   style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.22)' }}>
@@ -171,9 +174,9 @@ export default function Carnet({ mock }: Props) {
                   style={{ backgroundColor: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)' }}>
                   <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 animate-pulse" />
                   <div>
-                    <p className="text-xs font-bold tracking-wider" style={{ color: '#4ade80' }}>INGRESADO HOY</p>
+                    <p className="text-xs font-bold tracking-wider" style={{ color: '#4ade80' }}>INGRESÓ HOY</p>
                     {horaIngreso && (
-                      <p className="text-xs" style={{ color: 'rgba(74,222,128,0.6)' }}>{horaIngreso} hs · Zona Jugadores</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(74,222,128,0.55)' }}>{horaIngreso} · Zona Jugadores</p>
                     )}
                   </div>
                 </div>
@@ -196,12 +199,12 @@ export default function Carnet({ mock }: Props) {
           {/* FOOTER */}
           <div className="px-5 py-3 flex justify-between items-center"
             style={{ backgroundColor: 'var(--brand-bg)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
-            <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.5)' }}>
+            <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.65)' }}>
               Miembro activo
             </p>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--brand-primary)' }} />
-              <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.5)' }}>
+              <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.65)' }}>
                 Estelares · {temporada}
               </p>
             </div>
