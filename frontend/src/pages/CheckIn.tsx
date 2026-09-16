@@ -35,16 +35,13 @@ export default function CheckIn() {
     }
   };
 
-  // On mount: process URL token (native camera) OR redirect to carnet if already checked in
+  // On mount: process URL token (native camera) OR check today status
   useEffect(() => {
     const token = searchParams.get('t');
     if (token) {
       processToken(token);
-      return;
     }
-    api.todayStatus()
-      .then(s => { if (s.ingresado) navigate('/carnet', { replace: true }); })
-      .catch(() => {});
+    // no redirect — bottom nav allows user to open this tab even if already checked in
   }, []);
 
   // In-app QR scanner using getUserMedia + jsQR (pure JS, no Web Workers, no CSP issues)

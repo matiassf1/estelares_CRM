@@ -46,8 +46,10 @@ export default function MemberBottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 flex transition-transform duration-300"
       style={{
-        backgroundColor: 'var(--brand-surface)',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(18,18,20,0.96)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(255,255,255,0.14)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         transform: visible ? 'translateY(0)' : 'translateY(100%)',
       }}
