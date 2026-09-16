@@ -48,6 +48,17 @@ export async function initDb(): Promise<void> {
 
   await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL;`);
   await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS tipo_vehiculo VARCHAR(15);`);
+  await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS email TEXT;`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      member_id  UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      token      TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at    TIMESTAMPTZ
+    );
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS parking_spots (
