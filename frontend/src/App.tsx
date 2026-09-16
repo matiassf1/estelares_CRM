@@ -7,6 +7,8 @@ import Carnet from './pages/Carnet.tsx';
 import Portero from './pages/Portero.tsx';
 import Admin from './pages/Admin.tsx';
 import Preview from './pages/Preview.tsx';
+import ForgotPassword from './pages/ForgotPassword.tsx';
+import ResetPassword from './pages/ResetPassword.tsx';
 
 // Preserves ?t=<token> through the login redirect so a QR scan
 // that lands on /check-in?t=xxx still works even if not yet logged in.
@@ -40,6 +42,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login"    element={!user ? <Login />   : <Navigate to="/" replace />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password"  element={<ResetPassword />} />
       <Route path="/check-in" element={<CheckInGuard />} />
       <Route path="/carnet"   element={isMember ? <Carnet />  : <Navigate to="/login" replace />} />
       <Route path="/portero"  element={isStaff  ? <Portero /> : <Navigate to="/login" replace />} />

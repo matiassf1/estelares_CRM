@@ -97,6 +97,15 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ member_id }) }
     ),
 
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
+
+  forgotPassword: (dni: string) =>
+    request<{ ok: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ dni }) }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ ok: boolean }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
+
   getMembers: () =>
     request<Member[]>('/admin/members'),
 
