@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api.ts';
@@ -25,9 +25,22 @@ export default function Carnet({ mock }: Props) {
 
   const data: CarnetData = mock ?? user ?? {};
 
+  const statusRef = useRef<TodayStatus | null>(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   useEffect(() => {
     if (mock) return;
-    api.todayStatus().then(setStatus).catch(() => setStatus({ ingresado: false }));
+    const fetchStatus = () => { api.todayStatus().then((s) => { setStatus(s); }).catch(() => {}); };
+    fetchStatus();
+    const interval = setInterval(() => { if (!statusRef.current?.ingresado) fetchStatus(); }, 8000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !statusRef.current?.ingresado) fetchStatus();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [mock]);
 
   useEffect(() => {
