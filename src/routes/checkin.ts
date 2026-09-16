@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { isValidToken } from '../utils/token';
-import { todayArgentina } from '../utils/time';
+import { CHECKED_IN_DATE_AR, todayArgentina } from '../utils/time';
 
 const router = Router();
 
@@ -50,7 +50,7 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
 router.get('/today-status', authMiddleware, requireRole('member'), async (req, res) => {
   const today = todayArgentina();
   const { rows } = await pool.query(
-    `SELECT checked_in_at FROM check_ins WHERE member_id = $1 AND DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
+    `SELECT checked_in_at FROM check_ins WHERE member_id = $1 AND ${CHECKED_IN_DATE_AR} = $2`,
     [req.user!.id, today]
   );
   if (rows.length > 0) {
@@ -66,7 +66,7 @@ router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req
     `SELECT m.nombre, m.apellido, m.patente, m.tipo_vehiculo, c.checked_in_at
      FROM check_ins c
      JOIN members m ON c.member_id = m.id
-     WHERE DATE(c.checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $1
+     WHERE CAST((c.checked_in_at - INTERVAL '3 hours') AS DATE) = $1
      ORDER BY c.checked_in_at DESC`,
     [today]
   );
