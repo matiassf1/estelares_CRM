@@ -93,11 +93,11 @@ export default function Carnet({ mock }: Props) {
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-0.5"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  style={{ color: 'rgba(255,255,255,0.88)' }}>
                   Estelares Futsal
                 </p>
                 <p className="font-display text-white text-3xl tracking-widest leading-none">CARNET</p>
-                <p className="text-xs tracking-[0.25em] mt-1 gold-glow font-semibold" style={{ color: 'var(--brand-accent-lt)' }}>
+                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
                   TEMPORADA {temporada}
                 </p>
               </div>
