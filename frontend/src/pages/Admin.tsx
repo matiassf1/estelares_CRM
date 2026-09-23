@@ -36,192 +36,11 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
-function PlayerActions({
-  member, categorias, onUpdateMember, onClose,
-}: {
-  member: Member;
-  categorias: Categoria[];
-  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
-  onClose: () => void;
-}) {
-  const [loading, setLoading] = useState<string | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
-
-  const handleToggleActivo = async () => {
-    setLoading('activo');
-    await onUpdateMember(member.id, { activo: !member.activo });
-    setLoading(null);
-    onClose();
-  };
-
-  const handleCategoriaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    const newCatId = val === '' ? null : parseInt(val);
-    setLoading('cat');
-    await onUpdateMember(member.id, { categoria_id: newCatId });
-    setLoading(null);
-  };
-
-  return (
-    <div
-      className="px-3 pb-3 pt-2 flex flex-col gap-1.5"
-      style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.06)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
-    >
-      {/* Ver detalle */}
-      <button
-        className="flex items-center gap-3 text-xs px-3 py-2.5 rounded-lg text-left w-full transition-all active:scale-[0.98]"
-        style={{ color: 'var(--brand-accent)', backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
-        onClick={() => setShowDetail(v => !v)}
-      >
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-        <span className="font-medium">Ver detalle</span>
-        <svg className="w-3 h-3 ml-auto transition-transform duration-150 flex-shrink-0" style={{ transform: showDetail ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {showDetail && (
-        <div className="rounded-lg px-3 py-2.5 text-xs flex flex-col gap-1.5"
-          style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-          <span><span className="opacity-50">DNI:</span> <span className="font-medium">{member.dni}</span></span>
-          {member.patente && <span><span className="opacity-50">Patente:</span> <span className="font-medium">{member.patente}</span></span>}
-          <span><span className="opacity-50">Categoría:</span> <span className="font-medium">{member.categoria_nombre || '—'}</span></span>
-        </div>
-      )}
-
-      {/* Cambiar categoría */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
-        style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
-        <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-        <select
-          className="flex-1 text-xs bg-transparent appearance-none outline-none font-medium"
-          style={{ color: 'var(--brand-accent)' }}
-          value={member.categoria_id ?? ''}
-          onChange={handleCategoriaChange}
-          disabled={loading === 'cat'}
-        >
-          <option value="">Sin categoría</option>
-          {categorias.map(c => (
-            <option key={c.id} value={c.id}>{c.nombre}</option>
-          ))}
-        </select>
-        {loading === 'cat' && (
-          <span className="text-[10px] opacity-60" style={{ color: 'var(--brand-accent)' }}>Guardando…</span>
-        )}
-      </div>
-
-      {/* Activar / Desactivar */}
-      <button
-        className="flex items-center gap-3 text-xs px-3 py-2.5 rounded-lg text-left w-full font-medium transition-all active:scale-[0.98]"
-        style={member.activo
-          ? { color: '#e74c3c', backgroundColor: 'rgb(231 76 60 / 0.08)', border: '1px solid rgb(231 76 60 / 0.2)' }
-          : { color: '#27ae60', backgroundColor: 'rgb(39 174 96 / 0.08)', border: '1px solid rgb(39 174 96 / 0.2)' }
-        }
-        onClick={handleToggleActivo}
-        disabled={loading === 'activo'}
-      >
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={member.activo
-            ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-            : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
-        </svg>
-        {loading === 'activo' ? 'Guardando…' : member.activo ? 'Desactivar jugador' : 'Activar jugador'}
-      </button>
-    </div>
-  );
-}
-
 function avatarColor(name: string): string {
   const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
-}
-
-function PlayerList({
-  members, categoriaId, categorias, onUpdateMember,
-}: {
-  members: Member[];
-  categoriaId: number;
-  categorias: Categoria[];
-  onUpdateMember: (id: string, changes: Partial<Member>) => Promise<void>;
-}) {
-  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
-
-  const players = members
-    .filter(m => m.categoria_id === categoriaId)
-    .sort((a, b) => {
-      const apellidoA = (a.apellido || '').toLowerCase();
-      const apellidoB = (b.apellido || '').toLowerCase();
-      if (apellidoA !== apellidoB) return apellidoA.localeCompare(apellidoB, 'es');
-      return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase(), 'es');
-    });
-
-  return (
-    <div style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-      {players.length === 0 ? (
-        <p className="text-xs px-4 py-3" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
-          Sin jugadores asignados
-        </p>
-      ) : (
-        <div>
-          {players.map(m => {
-            const initials = getInitials(m.apellido, m.nombre);
-            const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
-            const isOpen = expandedPlayer === m.id;
-            return (
-              <div key={m.id}>
-                <div
-                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors [&:first-child]:border-t-0"
-                  style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.06)' }}
-                  onClick={() => setExpandedPlayer(isOpen ? null : m.id)}
-                >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
-                    style={{ backgroundColor: bgColor }}
-                  >
-                    {initials}
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-white">
-                    {formatPlayerName(m.apellido, m.nombre)}
-                  </span>
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                    style={m.activo
-                      ? { backgroundColor: 'rgb(39 174 96 / 0.15)', color: '#27ae60', border: '1px solid rgb(39 174 96 / 0.3)' }
-                      : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }
-                    }
-                  >
-                    {m.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                  <svg
-                    className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200"
-                    style={{ color: 'var(--brand-muted)', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-                {isOpen && (
-                  <PlayerActions
-                    member={m}
-                    categorias={categorias}
-                    onUpdateMember={onUpdateMember}
-                    onClose={() => setExpandedPlayer(null)}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
@@ -250,8 +69,6 @@ export default function Admin() {
   const [newCategoria, setNewCategoria] = useState('');
   const [catError, setCatError] = useState('');
   const [addingCat, setAddingCat] = useState(false);
-  const [expandedCat, setExpandedCat] = useState<number | null>(null);
-
   const load = useCallback(async () => {
     const [m, s, c] = await Promise.all([api.getMembers(), api.getStats(), api.getCategorias()]);
     setMembers(m); setStats(s); setCategorias(c);
@@ -266,11 +83,6 @@ export default function Admin() {
 
   const openCreate = () => setEditPanel({ member: null });
   const openEdit = (m: Member) => setEditPanel({ member: m });
-
-  const handlePlayerUpdate = async (id: string, changes: Partial<Member>) => {
-    await api.updateMember(id, changes);
-    setMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
-  };
 
   const [sheetMember, setSheetMember] = useState<Member | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
@@ -719,7 +531,7 @@ export default function Admin() {
         {tab === 'categorias' && (
           <>
             <div
-              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
               style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
             >
               <div className="flex items-baseline justify-between mb-3">
@@ -753,70 +565,101 @@ export default function Admin() {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               {categorias.length === 0 && (
                 <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
                   No hay categorías creadas
                 </div>
               )}
               {categorias.map(c => {
-                const count = members.filter(m => m.categoria_id === c.id).length;
-                const isExpanded = expandedCat === c.id;
+                const catMembers = members
+                  .filter(m => m.categoria_id === c.id)
+                  .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
+                const catColor = c.color || '#E5484D';
                 return (
-                  <div key={c.id} className="rounded-xl overflow-hidden"
-                    style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-                    {/* Fila principal clickeable */}
-                    <div
-                      className="px-4 py-3 flex items-center justify-between cursor-pointer select-none"
-                      onClick={() => setExpandedCat(isExpanded ? null : c.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <svg
-                          className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200"
-                          style={{
-                            color: 'var(--brand-muted)',
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                          }}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                        <div>
-                          <p className="text-white font-semibold text-sm">{c.nombre}</p>
+                  <div key={c.id} className="rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.18)' }}>
+
+                    {/* Card header */}
+                    <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                        <div className="min-w-0">
+                          <p className="text-white font-bold text-base leading-tight truncate">{c.nombre}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
-                            {count} jugador{count !== 1 ? 'es' : ''}
+                            {catMembers.length} jugador{catMembers.length !== 1 ? 'es' : ''}
                           </p>
                         </div>
-                        <div className="flex gap-1 ml-2">
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Color swatches */}
+                        <div className="flex gap-1">
                           {CATEGORY_COLORS.map(hex => (
                             <button
                               key={hex}
-                              onClick={e => { e.stopPropagation(); handleUpdateCatColor(c.id, hex); }}
+                              onClick={() => handleUpdateCatColor(c.id, hex)}
                               className="w-4 h-4 rounded-full transition-transform active:scale-90 flex-shrink-0"
                               style={{ backgroundColor: hex, outline: c.color === hex ? '2px solid white' : 'none', outlineOffset: '1px' }}
                             />
                           ))}
                         </div>
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeleteCategoria(c)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleDeleteCategoria(c); }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
                     </div>
 
-                    {/* Panel expandible de jugadores */}
-                    {isExpanded && (
-                      <PlayerList
-                        members={members}
-                        categoriaId={c.id}
-                        categorias={categorias}
-                        onUpdateMember={handlePlayerUpdate}
-                      />
-                    )}
+                    {/* Divider */}
+                    <div className="mx-4" style={{ height: 1, backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.1)' }} />
+
+                    {/* Avatar grid */}
+                    <div className="px-4 py-4">
+                      {catMembers.length === 0 ? (
+                        <p className="text-xs py-2 text-center" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.35)' }}>
+                          Sin jugadores asignados
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-3">
+                          {catMembers.map(m => {
+                            const initials = getInitials(m.apellido, m.nombre);
+                            const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
+                            const shortName = (m.apellido || m.nombre || '').split(' ')[0].slice(0, 8);
+                            return (
+                              <button
+                                key={m.id}
+                                onClick={() => openEdit(m)}
+                                className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform"
+                                style={{ opacity: m.activo ? 1 : 0.35, width: 56 }}
+                              >
+                                <div
+                                  className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                                  style={{
+                                    backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor,
+                                    border: '2px solid rgb(var(--brand-accent-rgb) / 0.15)',
+                                  }}
+                                >
+                                  {m.foto_url ? (
+                                    <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-sm font-bold text-white">{initials}</span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-semibold text-center leading-tight w-full truncate"
+                                  style={{ color: 'var(--brand-muted)' }}>
+                                  {shortName}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
