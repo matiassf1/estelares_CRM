@@ -135,7 +135,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
             <button
               type="button"
               className="text-xs active:opacity-70"
-              style={{ color: 'var(--brand-primary)' }}
+              style={{ color: 'rgba(255,255,255,0.45)' }}
               onClick={() => fileRef.current?.click()}
             >
               {form.foto_url ? 'Cambiar foto · Quitar' : 'Agregar foto'}

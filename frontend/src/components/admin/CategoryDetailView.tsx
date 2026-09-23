@@ -1,7 +1,22 @@
-import { useState, useMemo } from 'react';
-import { Categoria, Member } from '../../lib/api';
+import { useState, useMemo, useEffect } from 'react';
+import { Categoria, Member, CategoryAnalytics, api } from '../../lib/api';
 import { formatDni, formatPlayerName, getInitials } from '../../utils/format';
+import { formatLastSeen } from '../../utils/time';
 import ActionMenu from './ActionMenu';
+import MiniBar from '../analytics/MiniBar';
+
+function formatHour(h: number) {
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+function getRange() {
+  const to = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const from = new Date(to);
+  from.setDate(from.getDate() - 29);
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
 
 function avatarColor(name: string): string {
   const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
@@ -24,6 +39,17 @@ type DetailTab = 'plantel' | 'asistencia';
 export default function CategoryDetailView({ categoria, members, onBack, onEditMember, onCreateMember }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('plantel');
   const [search, setSearch] = useState('');
+  const [analytics, setAnalytics] = useState<CategoryAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsSort, setAnalyticsSort] = useState<'count' | 'avg_hour' | 'apellido'>('count');
+
+  useEffect(() => {
+    if (activeTab !== 'asistencia') return;
+    setAnalyticsLoading(true);
+    api.analyticsCategory(categoria.id, getRange())
+      .then(setAnalytics)
+      .finally(() => setAnalyticsLoading(false));
+  }, [activeTab, categoria.id]);
 
   const catMembers = useMemo(() =>
     members
@@ -108,6 +134,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="input-field w-full pl-9"
+                  style={{ backgroundColor: 'var(--brand-input-bg)', color: '#F5F5F0' }}
                 />
               </div>
               <button
@@ -256,16 +283,76 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
         )}
 
         {activeTab === 'asistencia' && (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-            <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)' }}>
-              <svg className="w-7 h-7" style={{ color: 'var(--brand-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <p className="text-white font-semibold text-base mb-2">Asistencia de {categoria.nombre}</p>
-            <p className="text-sm max-w-xs" style={{ color: 'var(--brand-muted)', lineHeight: 1.6 }}>
-              Las estadísticas de asistencia por categoría estarán disponibles próximamente.
-            </p>
+          <div className="flex flex-col gap-4">
+            {analyticsLoading && (
+              <div className="py-12 text-center text-xs" style={{ color: 'var(--brand-muted)' }}>Cargando...</div>
+            )}
+            {!analyticsLoading && analytics && (
+              <>
+                {/* Stat cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Ingresos', value: analytics.total_checkins },
+                    { label: 'Jugadores', value: `${analytics.unique_members}/${analytics.active_members}` },
+                    { label: 'Horarios', value: analytics.schedules.length, sub: 'configurados' },
+                  ].map(s => (
+                    <div key={s.label} className="rounded-xl px-3 py-3" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                      <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-accent)' }}>{s.label}</p>
+                      <p className="text-xl font-bold text-white leading-none">{s.value}</p>
+                      {s.sub && <p className="text-[9px] mt-0.5" style={{ color: 'var(--brand-muted)' }}>{s.sub}</p>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bar chart */}
+                {analytics.by_day.length > 0 && (
+                  <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                    <p className="text-[9px] uppercase tracking-widest mb-3" style={{ color: 'var(--brand-accent)' }}>Ingresos por día</p>
+                    <MiniBar data={analytics.by_day} height={48} showAxis />
+                  </div>
+                )}
+
+                {/* Member table */}
+                <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                  <div className="px-4 py-2.5 flex gap-1.5 items-center flex-wrap border-b" style={{ borderColor: 'rgba(201,168,76,0.1)' }}>
+                    <span className="text-[9px] uppercase tracking-widest mr-auto" style={{ color: 'var(--brand-accent)' }}>Jugadores</span>
+                    {(['count', 'avg_hour', 'apellido'] as const).map(s => (
+                      <button key={s} onClick={() => setAnalyticsSort(s)}
+                        className="text-[9px] px-2 py-1 rounded uppercase tracking-wider"
+                        style={{ backgroundColor: analyticsSort === s ? '#E5484D' : 'var(--brand-bg)', color: analyticsSort === s ? '#fff' : 'var(--brand-muted)' }}>
+                        {s === 'count' ? 'Asistencias' : s === 'avg_hour' ? 'Hora' : 'Nombre'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+                          {['Jugador', 'Ingresos', 'Hora prom.', 'Último'].map(h => (
+                            <th key={h} className="px-4 py-2 text-left text-[9px] uppercase tracking-widest" style={{ color: 'var(--brand-accent)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...analytics.members]
+                          .sort((a, b) => analyticsSort === 'count' ? b.count - a.count : analyticsSort === 'avg_hour' ? (a.avg_hour ?? 99) - (b.avg_hour ?? 99) : a.apellido.localeCompare(b.apellido, 'es'))
+                          .map(m => (
+                            <tr key={m.id} style={{ borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                              <td className="px-4 py-3 text-white font-medium">{m.apellido}, {m.nombre}</td>
+                              <td className="px-4 py-3" style={{ color: '#E5484D' }}>{m.count}</td>
+                              <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{m.avg_hour != null ? formatHour(m.avg_hour) : '—'}</td>
+                              <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{formatLastSeen(m.last_checkin)}</td>
+                            </tr>
+                          ))}
+                        {analytics.members.length === 0 && (
+                          <tr><td colSpan={4} className="px-4 py-8 text-center text-xs" style={{ color: 'var(--brand-muted)' }}>Sin ingresos en los últimos 30 días</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
