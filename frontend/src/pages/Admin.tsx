@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
@@ -51,6 +51,8 @@ export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<'jugadores' | 'categorias' | 'parking' | 'analitica'>('jugadores');
+  const [navHidden, setNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
@@ -82,6 +84,17 @@ export default function Admin() {
   }, []);
 
   useEffect(() => { load(); loadSpots(); }, [load, loadSpots]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > lastScrollY.current + 10) setNavHidden(true);
+      else if (y < lastScrollY.current - 6) setNavHidden(false);
+      lastScrollY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const openCreate = () => setEditPanel({ member: null });
   const openEdit = (m: Member) => setEditPanel({ member: m });
@@ -242,7 +255,7 @@ export default function Admin() {
         <div className="flex-1 p-5 md:p-8 min-w-0">
 
         {/* ── Tabs ── */}
-        <div className="sticky top-14 z-40 -mx-5 px-5 pt-3 pb-2 md:hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>
+        <div className="sticky top-14 z-40 -mx-5 px-5 pt-3 pb-2 md:hidden" style={{ backgroundColor: 'var(--brand-bg)', transform: navHidden ? 'translateY(-110%)' : 'translateY(0)', transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="flex gap-1 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
           {(['jugadores', 'categorias', 'parking', 'analitica'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
