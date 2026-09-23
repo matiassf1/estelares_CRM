@@ -1,0 +1,126 @@
+import { Router, Request, Response } from 'express';
+import { pool } from '../db';
+import { authMiddleware, requireRole } from '../middleware/auth';
+import { CHECKED_IN_DATE_AR } from '../utils/time';
+
+const router = Router();
+router.use(authMiddleware, requireRole('admin'));
+
+function parseDateRange(req: Request): { from: string; to: string } | null {
+  const from = req.query.from as string;
+  const to   = req.query.to   as string;
+  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return null;
+  return { from, to };
+}
+
+/**
+ * GET /api/admin/analytics/overview
+ * Query: from (YYYY-MM-DD), to (YYYY-MM-DD), categoryId? (number)
+ */
+router.get('/overview', async (req: Request, res: Response) => {
+  const range = parseDateRange(req);
+  if (!range) {
+    res.status(400).json({ error: 'from y to requeridos (YYYY-MM-DD)' });
+    return;
+  }
+  const { from, to } = range;
+  const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
+
+  const days = Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1;
+  const prevTo   = new Date(new Date(from).getTime() - 86400000).toISOString().slice(0, 10);
+  const prevFrom = new Date(new Date(from).getTime() - days * 86400000).toISOString().slice(0, 10);
+
+  const catFilter = categoryId ? `AND m.categoria_id = ${categoryId}` : '';
+  const dateExpr = CHECKED_IN_DATE_AR;
+
+  const [mainStats, prevStats, byDay, topMembers, activeCats] = await Promise.all([
+    pool.query(
+      `SELECT COUNT(c.id) AS total_checkins,
+              COUNT(DISTINCT c.member_id) AS unique_members
+       FROM check_ins c
+       JOIN members m ON m.id = c.member_id
+       WHERE ${dateExpr} BETWEEN $1 AND $2
+         AND m.activo = true ${catFilter}`,
+      [from, to]
+    ),
+    pool.query(
+      `SELECT COUNT(c.id) AS total_checkins
+       FROM check_ins c
+       JOIN members m ON m.id = c.member_id
+       WHERE ${dateExpr} BETWEEN $1 AND $2
+         AND m.activo = true ${catFilter}`,
+      [prevFrom, prevTo]
+    ),
+    pool.query(
+      `SELECT ${dateExpr} AS date, COUNT(*) AS count
+       FROM check_ins c
+       JOIN members m ON m.id = c.member_id
+       WHERE ${dateExpr} BETWEEN $1 AND $2
+         AND m.activo = true ${catFilter}
+       GROUP BY 1 ORDER BY 1`,
+      [from, to]
+    ),
+    pool.query(
+      `SELECT m.id, m.nombre, m.apellido, COUNT(c.id) AS count
+       FROM check_ins c
+       JOIN members m ON m.id = c.member_id
+       WHERE ${dateExpr} BETWEEN $1 AND $2
+         AND m.activo = true ${catFilter}
+       GROUP BY m.id, m.nombre, m.apellido
+       ORDER BY count DESC LIMIT 10`,
+      [from, to]
+    ),
+    pool.query(
+      `SELECT cat.id, cat.nombre, COUNT(c.id) AS count
+       FROM check_ins c
+       JOIN members m ON m.id = c.member_id
+       JOIN categorias cat ON cat.id = m.categoria_id
+       WHERE ${dateExpr} BETWEEN $1 AND $2
+         AND m.activo = true
+       GROUP BY cat.id, cat.nombre
+       ORDER BY count DESC`,
+      [from, to]
+    ),
+  ]);
+
+  const activeMembersCount = (await pool.query(
+    `SELECT COUNT(*) AS count FROM members WHERE activo = true ${categoryId ? `AND categoria_id = ${categoryId}` : ''}`
+  )).rows[0].count;
+
+  const inactiveRes = await pool.query(
+    `SELECT m.id, m.nombre, m.apellido,
+            MAX(${dateExpr}) AS last_checkin
+     FROM members m
+     LEFT JOIN check_ins c ON c.member_id = m.id
+     WHERE m.activo = true ${catFilter}
+       AND m.id NOT IN (
+         SELECT DISTINCT c2.member_id FROM check_ins c2
+         JOIN members m2 ON m2.id = c2.member_id
+         WHERE ${dateExpr} BETWEEN $1 AND $2 AND m2.activo = true ${catFilter}
+       )
+     GROUP BY m.id, m.nombre, m.apellido
+     ORDER BY last_checkin DESC NULLS LAST
+     LIMIT 20`,
+    [from, to]
+  );
+
+  const total = parseInt(mainStats.rows[0].total_checkins);
+  const prevTotal = parseInt(prevStats.rows[0].total_checkins);
+
+  res.json({
+    total_checkins: total,
+    unique_members: parseInt(mainStats.rows[0].unique_members),
+    active_members: parseInt(activeMembersCount),
+    checkins_prev_period: prevTotal,
+    trend_pct: prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null,
+    avg_daily: byDay.rows.length > 0
+      ? Math.round((total / byDay.rows.length) * 10) / 10
+      : 0,
+    by_day: byDay.rows.map(r => ({ date: r.date, count: parseInt(r.count) })),
+    top_members: topMembers.rows.map(r => ({ ...r, count: parseInt(r.count) })),
+    inactive_members: inactiveRes.rows,
+    active_categories: activeCats.rows.map(r => ({ ...r, count: parseInt(r.count) })),
+  });
+});
+
+export default router;

@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin';
 import parkingRoutes from './routes/parking';
 import categoriasRoutes from './routes/categorias';
 import trainingSchedulesRouter from './routes/training-schedules';
+import analyticsRouter from './routes/analytics';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/parking', parkingRoutes);
 app.use('/api/categorias', categoriasRoutes);
 app.use('/api/admin/training-schedules', trainingSchedulesRouter);
+app.use('/api/admin/analytics', analyticsRouter);
 
 const frontendPath = path.join(__dirname, '../public');
 app.use(express.static(frontendPath));
