@@ -42,8 +42,12 @@ export async function initDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS categorias (
       id     SERIAL PRIMARY KEY,
       nombre VARCHAR(50) UNIQUE NOT NULL,
-      orden  INT DEFAULT 0
+      orden  INT DEFAULT 0,
+      color  VARCHAR(7) DEFAULT '#E5484D'
     );
+  `);
+  await pool.query(`
+    ALTER TABLE categorias ADD COLUMN IF NOT EXISTS color VARCHAR(7) DEFAULT '#E5484D'
   `);
 
   await pool.query(`ALTER TABLE members ADD COLUMN IF NOT EXISTS categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL;`);

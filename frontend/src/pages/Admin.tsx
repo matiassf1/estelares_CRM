@@ -302,6 +302,13 @@ export default function Admin() {
     setDeleteTarget(null);
   };
 
+  const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
+
+  const handleUpdateCatColor = async (id: number, color: string) => {
+    await api.updateCategoria(id, { color });
+    setCategorias(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+  };
+
   const playerActionItems = (m: Member) => [
     { label: 'Editar datos', onClick: () => openEdit(m) },
     { label: 'Asignar cochera', onClick: () => setTab('parking') },
@@ -538,8 +545,80 @@ export default function Admin() {
                   {search ? 'Sin resultados para esa búsqueda' : 'No hay jugadores cargados'}
                 </div>
               )}
+
+              {/* Desktop table */}
+              {filtered.length > 0 && (
+                <div className="hidden md:block">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+                        <th className="text-left py-2 font-semibold">Jugador</th>
+                        <th className="text-left py-2 font-semibold">Categoría</th>
+                        <th className="text-left py-2 font-semibold">Cochera</th>
+                        <th className="text-left py-2 font-semibold">Estado</th>
+                        <th className="py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(m => {
+                        const cat = categorias.find(c => c.id === m.categoria_id);
+                        const catColor = cat?.color || '#E5484D';
+                        const spot = spots.find(s => s.member_id === m.id);
+                        const initials = getInitials(m.apellido, m.nombre);
+                        return (
+                          <tr
+                            key={m.id}
+                            className="transition-colors hover:bg-white/[0.02]"
+                            style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: m.activo ? 1 : 0.45 }}
+                          >
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ backgroundColor: avatarColor(`${m.apellido}${m.nombre}`) }}>
+                                  {m.foto_url ? <img src={m.foto_url} alt="" className="w-full h-full object-cover rounded-full" /> : initials}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-white">{formatPlayerName(m.apellido, m.nombre)}</p>
+                                  <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>DNI {formatDni(m.dni)}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4">
+                              {cat ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--brand-accent)' }}>
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                  {cat.nombre}
+                                </span>
+                              ) : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                            </td>
+                            <td className="py-3 pr-4 text-xs" style={{ color: spot ? 'var(--brand-accent)' : 'var(--brand-muted)' }}>
+                              {spot ? `Nº ${spot.spot_number}${m.patente ? ` · ${m.patente}` : ''}` : '—'}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span
+                                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                style={m.activo
+                                  ? { backgroundColor: 'rgb(63 181 107 / 0.15)', color: '#3FB56B', border: '1px solid rgb(63 181 107 / 0.3)' }
+                                  : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
+                              >
+                                {m.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <ActionMenu items={playerActionItems(m)} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Mobile cards */}
+              <div className="md:hidden">
               {filtered.map((m) => (
-                <div key={m.id} className="rounded-xl px-4 py-3 transition-all cursor-pointer md:cursor-default"
+                <div key={m.id} className="rounded-xl px-4 py-3 mb-2 transition-all cursor-pointer md:cursor-default"
                   onClick={() => { if (window.innerWidth < 768) setSheetMember(m); }}
                   style={{
                     backgroundColor: 'var(--brand-surface)',
@@ -574,12 +653,16 @@ export default function Admin() {
                               <VehicleIcon tipo={m.tipo_vehiculo} size={12} />
                             </span>
                           )}
-                          {m.categoria_nombre && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-wide" style={{ color: 'var(--brand-accent)' }}>
-                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                              {m.categoria_nombre}
-                            </span>
-                          )}
+                          {m.categoria_nombre && (() => {
+                            const cat = categorias.find(c => c.id === m.categoria_id);
+                            const catColor = cat?.color || '#E5484D';
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold tracking-wide" style={{ color: 'var(--brand-accent)' }}>
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                {m.categoria_nombre}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -592,6 +675,7 @@ export default function Admin() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
 
             {filtered.length > 0 && (
@@ -702,6 +786,16 @@ export default function Admin() {
                           <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
                             {count} jugador{count !== 1 ? 'es' : ''}
                           </p>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          {CATEGORY_COLORS.map(hex => (
+                            <button
+                              key={hex}
+                              onClick={e => { e.stopPropagation(); handleUpdateCatColor(c.id, hex); }}
+                              className="w-4 h-4 rounded-full transition-transform active:scale-90 flex-shrink-0"
+                              style={{ backgroundColor: hex, outline: c.color === hex ? '2px solid white' : 'none', outlineOffset: '1px' }}
+                            />
+                          ))}
                         </div>
                       </div>
                       <button
