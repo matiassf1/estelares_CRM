@@ -45,8 +45,8 @@ export default function MiniBar({ data, height = 40, color = '#E5484D', showAxis
       <BarChart data={chartData} margin={{ top: 2, right: 0, bottom: showAxis ? 16 : 0, left: 0 }} barCategoryGap="15%">
         {showAxis && (
           <XAxis
-            dataKey="axisLabel"
-            tick={({ x, y, payload, index }) => {
+            dataKey="day"
+            tick={({ x, y, index }) => {
               const d = chartData[index];
               if (!d?.axisLabel) return <g />;
               return (
