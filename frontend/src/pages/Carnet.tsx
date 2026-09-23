@@ -65,11 +65,11 @@ export default function Carnet({ mock }: Props) {
     e.preventDefault();
     setPwError('');
     if (pwForm.next !== pwForm.confirm) {
-      setPwError('Las contrasenas no coinciden');
+      setPwError('Las contraseñas no coinciden');
       return;
     }
     if (pwForm.next.length < 6) {
-      setPwError('La nueva contrasena debe tener al menos 6 caracteres');
+      setPwError('La nueva contraseña debe tener al menos 6 caracteres');
       return;
     }
     setPwLoading(true);
@@ -82,7 +82,7 @@ export default function Carnet({ mock }: Props) {
         setShowPwForm(false);
       }, 2500);
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : 'No se pudo cambiar la contrasena');
+      setPwError(err instanceof Error ? err.message : 'No se pudo cambiar la contraseña');
     } finally {
       setPwLoading(false);
     }
@@ -278,7 +278,7 @@ export default function Carnet({ mock }: Props) {
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Cambiar contrasena
+              Cambiar contraseña
             </button>
 
             {showPwForm && (
@@ -289,7 +289,7 @@ export default function Carnet({ mock }: Props) {
               >
                 <input
                   type="password"
-                  placeholder="Contrasena actual"
+                  placeholder="Contraseña actual"
                   value={pwForm.current}
                   onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
                   required
@@ -298,7 +298,7 @@ export default function Carnet({ mock }: Props) {
                 />
                 <input
                   type="password"
-                  placeholder="Nueva contrasena"
+                  placeholder="Nueva contraseña"
                   value={pwForm.next}
                   onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })}
                   required
@@ -307,7 +307,7 @@ export default function Carnet({ mock }: Props) {
                 />
                 <input
                   type="password"
-                  placeholder="Confirmar nueva contrasena"
+                  placeholder="Confirmar nueva contraseña"
                   value={pwForm.confirm}
                   onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
                   required
@@ -316,7 +316,7 @@ export default function Carnet({ mock }: Props) {
                 />
 
                 {pwError && <p className="text-xs text-red-400">{pwError}</p>}
-                {pwSuccess && <p className="text-xs text-green-400">Contrasena actualizada</p>}
+                {pwSuccess && <p className="text-xs text-green-400">Contraseña actualizada</p>}
 
                 <button
                   type="submit"
