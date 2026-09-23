@@ -4,71 +4,62 @@ interface HeatCell { weekday: number; hour: number; count: number }
 
 interface Props {
   data: HeatCell[];
-  startHour?: number;
-  endHour?: number;
 }
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const HOURS = [17, 18, 19, 20, 21, 22, 23];
 
 export default function HeatmapGrid({ data }: Props) {
-  const hours = HOURS;
   const filtered = data.filter(d => HOURS.includes(d.hour));
   const max = Math.max(...filtered.map(d => d.count), 1);
 
   const getCount = (wd: number, h: number) =>
     filtered.find(d => d.weekday === wd && d.hour === h)?.count ?? 0;
 
-  // only render days that have at least one check-in in the hour range
   const activeDays = DAYS.map((day, wd) => ({ day, wd }))
-    .filter(({ wd }) => hours.some(h => getCount(wd, h) > 0));
-
-  const cellW = 36;
-  const cellH = 24;
-  const labelW = 28;
-  const labelH = 20;
-  const totalW = labelW + hours.length * cellW;
-  const totalH = labelH + (activeDays.length || 1) * cellH;
+    .filter(({ wd }) => HOURS.some(h => getCount(wd, h) > 0));
 
   if (activeDays.length === 0) {
     return <p className="text-xs py-4 text-center" style={{ color: 'var(--brand-muted)' }}>Sin datos en este período</p>;
   }
 
+  // Use CSS Grid instead of SVG for full-width responsive layout
+  const cellSize = 'minmax(0, 1fr)';
+
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${totalW} ${totalH}`} preserveAspectRatio="xMinYMin meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
-        {/* hour labels */}
-        {hours.map((h, i) => (
-          <text key={h} x={labelW + i * cellW + cellW / 2} y={12}
-            textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.4)">
-            {h}
-          </text>
-        ))}
-        {/* active day labels + cells */}
-        {activeDays.map(({ day, wd }, row) => (
-          <g key={wd}>
-            <text x={labelW - 3} y={labelH + row * cellH + cellH / 2 + 3}
-              textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.5)">
-              {day}
-            </text>
-            {hours.map((h, hi) => {
-              const count = getCount(wd, h);
-              const intensity = count / max;
-              return (
-                <rect key={h}
-                  x={labelW + hi * cellW + 1}
-                  y={labelH + row * cellH + 1}
-                  width={cellW - 2} height={cellH - 2} rx={2}
-                  fill={`rgba(220,38,38,${intensity > 0 ? Math.max(0.12, intensity) : 0})`}
-                  stroke="rgba(255,255,255,0.04)" strokeWidth={0.5}
-                >
-                  <title>{day} {h}:00 — {count} ingresos</title>
-                </rect>
-              );
-            })}
-          </g>
-        ))}
-      </svg>
+    <div style={{ display: 'grid', gridTemplateColumns: `28px repeat(${HOURS.length}, ${cellSize})`, gap: 2 }}>
+      {/* Header row: empty corner + hour labels */}
+      <div />
+      {HOURS.map(h => (
+        <div key={h} className="text-center" style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', paddingBottom: 4 }}>
+          {h}
+        </div>
+      ))}
+
+      {/* Data rows */}
+      {activeDays.map(({ day, wd }) => (
+        <>
+          <div key={`label-${wd}`} className="flex items-center justify-end pr-1" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+            {day}
+          </div>
+          {HOURS.map(h => {
+            const count = getCount(wd, h);
+            const intensity = count / max;
+            return (
+              <div
+                key={h}
+                title={`${day} ${h}:00 — ${count} ingresos`}
+                style={{
+                  height: 20,
+                  borderRadius: 2,
+                  backgroundColor: `rgba(220,38,38,${intensity > 0 ? Math.max(0.12, intensity) : 0})`,
+                  border: '1px solid rgba(255,255,255,0.04)',
+                }}
+              />
+            );
+          })}
+        </>
+      ))}
     </div>
   );
 }
