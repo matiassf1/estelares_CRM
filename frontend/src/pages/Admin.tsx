@@ -242,7 +242,8 @@ export default function Admin() {
         <div className="flex-1 p-5 md:p-8 min-w-0">
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
+        <div className="sticky top-14 z-40 -mx-5 px-5 pt-3 pb-2 md:hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>
+        <div className="flex gap-1 p-1 rounded-xl animate-slide-up" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
           {(['jugadores', 'categorias', 'parking', 'analitica'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
@@ -253,7 +254,7 @@ export default function Admin() {
             </button>
           ))}
         </div>
-
+        </div>
 
         {/* ── TAB CONTENT ── */}
         <div key={tab} className="animate-fade-in">
