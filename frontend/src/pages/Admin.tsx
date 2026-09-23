@@ -278,10 +278,6 @@ export default function Admin() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
-  const _handleDelete = async (m: Member) => {
-    if (!confirm(`¿Eliminar a ${m.nombre} ${m.apellido}?`)) return;
-    await api.deleteMember(m.id); load();
-  };
 
   const handleDeactivate = async (m: Member) => {
     const wasActive = m.activo;

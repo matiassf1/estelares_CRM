@@ -11,7 +11,7 @@ interface Props {
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const HOURS = [17, 18, 19, 20, 21, 22, 23];
 
-export default function HeatmapGrid({ data, startHour = 7, endHour = 23 }: Props) {
+export default function HeatmapGrid({ data }: Props) {
   const hours = HOURS;
   const filtered = data.filter(d => HOURS.includes(d.hour));
   const max = Math.max(...filtered.map(d => d.count), 1);
