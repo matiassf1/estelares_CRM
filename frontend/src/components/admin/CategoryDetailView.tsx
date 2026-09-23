@@ -292,14 +292,14 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                 {/* Stat cards */}
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Ingresos', value: analytics.total_checkins },
-                    { label: 'Jugadores', value: `${analytics.unique_members}/${analytics.active_members}` },
-                    { label: 'Horarios', value: analytics.schedules.length, sub: 'configurados' },
+                    { label: 'Ingresos', value: analytics.total_checkins, sub: '30 días' },
+                    { label: 'Activos', value: analytics.unique_members, sub: `de ${analytics.active_members}` },
+                    { label: 'Horarios', value: analytics.schedules.length },
                   ].map(s => (
                     <div key={s.label} className="rounded-xl px-3 py-3" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.12)' }}>
-                      <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-accent)' }}>{s.label}</p>
+                      <p className="text-[9px] uppercase tracking-widest mb-1 truncate" style={{ color: 'var(--brand-accent)' }}>{s.label}</p>
                       <p className="text-xl font-bold text-white leading-none">{s.value}</p>
-                      {s.sub && <p className="text-[9px] mt-0.5" style={{ color: 'var(--brand-muted)' }}>{s.sub}</p>}
+                      {s.sub && <p className="text-[9px] mt-0.5 truncate" style={{ color: 'var(--brand-muted)' }}>{s.sub}</p>}
                     </div>
                   ))}
                 </div>
