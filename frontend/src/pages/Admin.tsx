@@ -225,6 +225,7 @@ function PlayerList({
 }
 
 type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
+const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
 
 export default function Admin() {
   const { logout } = useAuth();
@@ -277,7 +278,7 @@ export default function Admin() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
-  const handleDelete = async (m: Member) => {
+  const _handleDelete = async (m: Member) => {
     if (!confirm(`¿Eliminar a ${m.nombre} ${m.apellido}?`)) return;
     await api.deleteMember(m.id); load();
   };
@@ -301,8 +302,6 @@ export default function Admin() {
     setMembers(prev => prev.filter(x => x.id !== deleteTarget.id));
     setDeleteTarget(null);
   };
-
-  const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
 
   const handleUpdateCatColor = async (id: number, color: string) => {
     const prev = categorias.find(c => c.id === id)?.color;
