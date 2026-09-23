@@ -16,15 +16,23 @@ export default function HeatmapGrid({ data }: Props) {
   const filtered = data.filter(d => HOURS.includes(d.hour));
   const max = Math.max(...filtered.map(d => d.count), 1);
 
+  const getCount = (wd: number, h: number) =>
+    filtered.find(d => d.weekday === wd && d.hour === h)?.count ?? 0;
+
+  // only render days that have at least one check-in in the hour range
+  const activeDays = DAYS.map((day, wd) => ({ day, wd }))
+    .filter(({ wd }) => hours.some(h => getCount(wd, h) > 0));
+
   const cellW = 36;
   const cellH = 24;
   const labelW = 28;
   const labelH = 20;
   const totalW = labelW + hours.length * cellW;
-  const totalH = labelH + DAYS.length * cellH;
+  const totalH = labelH + (activeDays.length || 1) * cellH;
 
-  const getCount = (wd: number, h: number) =>
-    filtered.find(d => d.weekday === wd && d.hour === h)?.count ?? 0;
+  if (activeDays.length === 0) {
+    return <p className="text-xs py-4 text-center" style={{ color: 'var(--brand-muted)' }}>Sin datos en este período</p>;
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -36,10 +44,10 @@ export default function HeatmapGrid({ data }: Props) {
             {h}
           </text>
         ))}
-        {/* day labels + cells */}
-        {DAYS.map((day, wd) => (
+        {/* active day labels + cells */}
+        {activeDays.map(({ day, wd }, row) => (
           <g key={wd}>
-            <text x={labelW - 3} y={labelH + wd * cellH + cellH / 2 + 3}
+            <text x={labelW - 3} y={labelH + row * cellH + cellH / 2 + 3}
               textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.5)">
               {day}
             </text>
@@ -49,9 +57,9 @@ export default function HeatmapGrid({ data }: Props) {
               return (
                 <rect key={h}
                   x={labelW + hi * cellW + 1}
-                  y={labelH + wd * cellH + 1}
+                  y={labelH + row * cellH + 1}
                   width={cellW - 2} height={cellH - 2} rx={2}
-                  fill={`rgba(220,38,38,${intensity > 0 ? Math.max(0.08, intensity) : 0})`}
+                  fill={`rgba(220,38,38,${intensity > 0 ? Math.max(0.12, intensity) : 0})`}
                   stroke="rgba(255,255,255,0.04)" strokeWidth={0.5}
                 >
                   <title>{day} {h}:00 — {count} ingresos</title>

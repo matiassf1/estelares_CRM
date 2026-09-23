@@ -13,28 +13,34 @@ export default function MiniBar({ data, height = 40, color = 'var(--brand-primar
   const max = Math.max(...data.map(d => d.count), 1);
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const W = 100;
-  const barW = W / data.length;
+  // cap bar width so a small dataset doesn't produce giant bars
+  const barW = Math.min(W / data.length, 10);
+  const barsW = barW * data.length;
+  const offsetX = (W - barsW) / 2;
   const axisH = showAxis ? 20 : 0;
   const totalH = height + axisH;
 
   return (
     <svg
       viewBox={`0 0 ${W} ${totalH}`}
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMax meet"
       style={{ width: '100%', height: showAxis ? height + 24 : height, display: 'block' }}
     >
+      {/* baseline */}
+      <line x1={0} y1={height} x2={W} y2={height} stroke="rgba(255,255,255,0.06)" strokeWidth={0.5} />
       {data.map((d, i) => {
-        const barH = (d.count / max) * height;
+        const barH = (d.count / max) * (height - 2);
         const isToday = d.date === today;
-        const x = i * barW;
+        const x = offsetX + i * barW;
+        const barColor = isToday ? '#3FB56B' : d.count > 0 ? color : 'rgba(255,255,255,0.06)';
         return (
           <g key={d.date}>
             <rect
-              x={x + barW * 0.12}
+              x={x + barW * 0.1}
               y={height - barH}
-              width={barW * 0.76}
+              width={barW * 0.8}
               height={Math.max(barH, d.count > 0 ? 1.5 : 0)}
-              fill={isToday ? '#3FB56B' : d.count > 0 ? color : 'rgba(255,255,255,0.06)'}
+              style={{ fill: barColor }}
               rx="1"
             />
             <title>{d.date}: {d.count}</title>
@@ -43,11 +49,11 @@ export default function MiniBar({ data, height = 40, color = 'var(--brand-primar
       })}
       {showAxis && data.length > 1 && (
         <>
-          <text x={barW * 0.5} y={totalH - 3} fontSize="5" fill="rgba(255,255,255,0.35)" textAnchor="middle">
+          <text x={offsetX + barW * 0.5} y={totalH - 3} fontSize="5" fill="rgba(255,255,255,0.35)" textAnchor="middle">
             {formatLastSeen(data[0].date)}
           </text>
           <text
-            x={W - barW * 0.5}
+            x={offsetX + barsW - barW * 0.5}
             y={totalH - 3}
             fontSize="5"
             fill={data[data.length - 1].date === today ? '#3FB56B' : 'rgba(255,255,255,0.35)'}
