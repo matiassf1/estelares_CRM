@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface BottomSheetItem {
   label: string;
@@ -14,55 +15,92 @@ interface BottomSheetProps {
   onClose: () => void;
 }
 
-export default function BottomSheet({ title, subtitle, items, onClose }: BottomSheetProps) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+function itemColor(color: BottomSheetItem['color'] = 'default') {
+  if (color === 'gold') return 'var(--brand-gold)';
+  if (color === 'red') return '#f87171';
+  return 'rgba(255,255,255,0.85)';
+}
 
-  const colorStyle = (color: BottomSheetItem['color'] = 'default') => {
-    if (color === 'gold') return { color: 'var(--brand-gold)' };
-    if (color === 'red') return { color: 'var(--brand-primary)' };
-    return { color: 'var(--brand-accent)' };
+export default function BottomSheet({ title, subtitle, items, onClose }: BottomSheetProps) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setVisible(true));
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    return () => { cancelAnimationFrame(t); document.removeEventListener('keydown', onKey); };
+  }, []);
+
+  const close = () => {
+    setVisible(false);
+    setTimeout(onClose, 260);
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex flex-col justify-end"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}
+      className="fixed inset-0 z-[200] flex flex-col justify-end"
+      style={{
+        backgroundColor: `rgba(0,0,0,${visible ? 0.6 : 0})`,
+        backdropFilter: visible ? 'blur(3px)' : 'blur(0px)',
+        transition: 'background-color 0.25s ease, backdrop-filter 0.25s ease',
+      }}
+      onMouseDown={e => { if (e.target === e.currentTarget) close(); }}
+      onTouchStart={e => { if (e.target === e.currentTarget) close(); }}
     >
       <div
-        className="rounded-t-3xl p-5"
+        className="w-full rounded-t-2xl"
         style={{
-          backgroundColor: 'var(--brand-surface)',
-          border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
-          paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+          backgroundColor: '#1a1a1c',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderBottom: 'none',
+          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.26s cubic-bezier(0.32, 0.72, 0, 1)',
         }}
-        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 mb-4 pb-3" style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-          <div className="flex-1">
-            <p className="font-semibold text-white text-base">{title}</p>
-            {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>{subtitle}</p>}
-          </div>
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-9 h-1 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
         </div>
-        <div className="flex flex-col">
+
+        {/* Header */}
+        <div className="px-5 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <p className="font-semibold text-white text-base">{title}</p>
+          {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>{subtitle}</p>}
+        </div>
+
+        {/* Actions */}
+        <div className="py-2">
           {items.map((item, idx) => (
             <div key={idx}>
-              {item.separator && <div className="my-1.5 h-px" style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)' }} />}
+              {item.separator && (
+                <div className="my-1 mx-5 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              )}
               <button
-                onClick={() => { item.onClick(); onClose(); }}
-                className="w-full text-left py-3.5 text-base transition-opacity active:opacity-60"
-                style={colorStyle(item.color)}
+                onClick={() => { item.onClick(); close(); }}
+                className="w-full text-left px-5 py-3.5 text-base active:opacity-60 transition-opacity"
+                style={{ color: itemColor(item.color) }}
               >
                 {item.label}
               </button>
             </div>
           ))}
         </div>
+
+        {/* Cancel */}
+        <div className="px-4 pt-1">
+          <button
+            onClick={close}
+            className="w-full py-3.5 rounded-xl text-sm font-medium text-center active:opacity-60 transition-opacity"
+            style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)' }}
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

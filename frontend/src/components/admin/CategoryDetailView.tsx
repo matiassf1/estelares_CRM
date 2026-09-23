@@ -134,7 +134,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="input-field w-full pl-9"
-                  style={{ backgroundColor: 'var(--brand-input-bg)', color: '#F5F5F0' }}
+                  style={{ backgroundColor: 'var(--brand-input-bg)', color: '#F5F5F0', paddingLeft: '2.25rem' }}
                 />
               </div>
               <button
