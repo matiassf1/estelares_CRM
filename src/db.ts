@@ -87,4 +87,26 @@ export async function initDb(): Promise<void> {
     console.log('Usuarios por defecto creados: admin / portero');
     console.log('Cambiar contraseñas desde el panel admin.');
   }
+
+  // Analytics: training schedules (temporal model)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS training_schedules (
+      id            SERIAL PRIMARY KEY,
+      categoria_id  INT NOT NULL REFERENCES categorias(id) ON DELETE CASCADE,
+      day_of_week   SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+      start_time    TIME NOT NULL,
+      tolerance_min SMALLINT NOT NULL DEFAULT 15,
+      valid_from    DATE NOT NULL DEFAULT CURRENT_DATE,
+      valid_until   DATE,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      CONSTRAINT training_no_past_until CHECK (valid_until IS NULL OR valid_until > valid_from)
+    );
+  `);
+
+  // Performance indexes for analytics queries
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_checkins_member   ON check_ins (member_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_checkins_date_ar  ON check_ins (CAST((checked_in_at - INTERVAL '3 hours') AS DATE));`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_checkins_hour     ON check_ins (CAST(EXTRACT(HOUR FROM (checked_in_at - INTERVAL '3 hours')) AS INT));`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_members_categoria ON members (categoria_id) WHERE activo = true;`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_schedules_cat     ON training_schedules (categoria_id, day_of_week);`);
 }
