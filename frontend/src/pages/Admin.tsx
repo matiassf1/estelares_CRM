@@ -1,32 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
-import { compressImage } from '../utils/image.ts';
 import { formatDni, formatPlayerName, getInitials } from '../utils/format';
 import ClubShield from '../components/ClubShield.tsx';
-import Input from '../components/Input.tsx';
 import Analytics from './Analytics';
 import ActionMenu from '../components/admin/ActionMenu';
 import BottomSheet from '../components/admin/BottomSheet';
 import ConfirmModal from '../components/admin/ConfirmModal';
 import Toast from '../components/admin/Toast';
+import PlayerEditPanel from '../components/admin/PlayerEditPanel';
 
-type FormData = {
-  nombre: string; apellido: string; dni: string; patente: string;
-  password: string; foto_url: string; categoria_id: string; tipo_vehiculo: string;
-};
-const emptyForm: FormData = {
-  nombre: '', apellido: '', dni: '', patente: '',
-  password: '', foto_url: '', categoria_id: '', tipo_vehiculo: '',
-};
-
-const VEHICULOS = [
-  { value: '', label: 'Ninguno' },
-  { value: 'auto', label: 'Auto' },
-  { value: 'moto', label: 'Moto' },
-  { value: 'bicicleta', label: 'Bici' },
-];
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
   if (!tipo) return null;
@@ -247,14 +231,8 @@ export default function Admin() {
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormData>(emptyForm);
-  const [formError, setFormError] = useState('');
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [editPanel, setEditPanel] = useState<{ member: Member | null } | null>(null);
 
   // Parking state
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
@@ -281,48 +259,8 @@ export default function Admin() {
 
   useEffect(() => { load(); loadSpots(); }, [load, loadSpots]);
 
-  const openCreate = () => {
-    setForm(emptyForm); setEditingId(null); setFormError(''); setShowForm(true);
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-  };
-  const openEdit = (m: Member) => {
-    setForm({
-      nombre: m.nombre, apellido: m.apellido, dni: m.dni,
-      patente: m.patente || '', password: '', foto_url: m.foto_url || '',
-      categoria_id: m.categoria_id ? String(m.categoria_id) : '',
-      tipo_vehiculo: m.tipo_vehiculo || '',
-    });
-    setEditingId(m.id); setFormError(''); setShowForm(true);
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-  };
-
-  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file, 400);
-    setForm(prev => ({ ...prev, foto_url: compressed }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setFormError(''); setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
-        tipo_vehiculo: form.tipo_vehiculo || null,
-      };
-      if (editingId) {
-        const p = { ...payload } as Partial<Member & { password: string }>;
-        if (!form.password) delete p.password;
-        await api.updateMember(editingId, p);
-      } else {
-        await api.createMember(payload);
-      }
-      setShowForm(false); setEditingId(null); load();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Error');
-    } finally { setSaving(false); }
-  };
+  const openCreate = () => setEditPanel({ member: null });
+  const openEdit = (m: Member) => setEditPanel({ member: m });
 
   const handlePlayerUpdate = async (id: string, changes: Partial<Member>) => {
     await api.updateMember(id, changes);
@@ -332,6 +270,7 @@ export default function Admin() {
   const [sheetMember, setSheetMember] = useState<Member | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
   const handleDelete = async (m: Member) => {
@@ -366,12 +305,6 @@ export default function Admin() {
       onClick: () => m.activo ? handleDeactivate(m) : handleToggle(m) },
     { label: 'Eliminar jugador…', color: 'red' as const, onClick: () => setDeleteTarget(m) },
   ];
-
-  const f = (field: keyof FormData) => ({
-    value: form[field],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm(prev => ({ ...prev, [field]: e.target.value })),
-  });
 
   const handleAddSpot = async (e: React.FormEvent) => {
     e.preventDefault(); setSpotError(''); setAddingSpot(true);
@@ -562,125 +495,6 @@ export default function Admin() {
               </div>
             </div>
 
-            {showForm && (
-              <form ref={formRef} onSubmit={handleSubmit} className="rounded-2xl p-5 mb-5 animate-slide-up"
-                style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
-
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                    <h3 className="font-display text-white tracking-widest text-lg">
-                      {editingId ? 'EDITAR JUGADOR' : 'NUEVO JUGADOR'}
-                    </h3>
-                  </div>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="text-xs uppercase tracking-wider active:text-white"
-                    style={{ color: 'var(--brand-muted)' }}>✕</button>
-                </div>
-
-                {/* Photo */}
-                <div className="flex items-center gap-4 mb-5 pb-5"
-                  style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
-                  <div onClick={() => fileRef.current?.click()}
-                    className="rounded-2xl cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all active:scale-95"
-                    style={{ width: 72, height: 72, backgroundColor: 'var(--brand-bg)', border: '2px dashed rgb(var(--brand-accent-rgb) / 0.3)' }}>
-                    {form.foto_url ? (
-                      <img src={form.foto_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <svg className="w-6 h-6" style={{ color: 'var(--brand-accent)', opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-white text-xs font-semibold mb-0.5">Foto del jugador</p>
-                    <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Opcional · se comprime automáticamente</p>
-                    {form.foto_url && (
-                      <button type="button" onClick={() => setForm(f => ({ ...f, foto_url: '' }))}
-                        className="text-xs mt-1 active:opacity-70" style={{ color: 'var(--brand-primary)' }}>
-                        Quitar foto
-                      </button>
-                    )}
-                  </div>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-                </div>
-
-                {/* Name fields */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <Input label="Nombre" {...f('nombre')} placeholder="Nombre" required />
-                  <Input label="Apellido" {...f('apellido')} placeholder="Apellido" required />
-                </div>
-
-                <div className="space-y-3">
-                  <Input label="DNI" {...f('dni')} placeholder="12345678" inputMode="numeric" required={!editingId} />
-                  <Input label="Patente" {...f('patente')} placeholder="AB 123 CD (opcional)" />
-
-                  {/* Categoría */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Categoría</p>
-                    <select
-                      value={form.categoria_id}
-                      onChange={e => setForm(prev => ({ ...prev, categoria_id: e.target.value }))}
-                      className="input-field w-full"
-                      style={{ backgroundColor: 'var(--brand-bg)', color: form.categoria_id ? 'white' : 'var(--brand-muted)' }}>
-                      <option value="">Sin categoría</option>
-                      {categorias.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Tipo de vehículo */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Vehículo</p>
-                    <div className="flex gap-2">
-                      {VEHICULOS.map(v => (
-                        <button
-                          key={v.value}
-                          type="button"
-                          onClick={() => setForm(prev => ({ ...prev, tipo_vehiculo: v.value }))}
-                          className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
-                          style={form.tipo_vehiculo === v.value
-                            ? { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.2)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.5)' }
-                            : { backgroundColor: 'var(--brand-bg)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-                          {v.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Input
-                    label={editingId ? 'Nueva contraseña' : 'Contraseña'}
-                    type="password" {...f('password')}
-                    placeholder={editingId ? 'Dejar vacío para no cambiar' : '••••••••'}
-                    required={!editingId}
-                  />
-                </div>
-
-                {formError && (
-                  <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mt-3"
-                    style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                    <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{formError}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 mt-5">
-                  <button type="submit" disabled={saving}
-                    className="btn-red flex-1 font-display tracking-widest text-white text-base py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                    {saving ? 'GUARDANDO...' : 'GUARDAR'}
-                  </button>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="px-5 rounded-xl text-sm active:text-white transition-colors"
-                    style={{ backgroundColor: 'var(--brand-surface-2)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            )}
-
             <div className="space-y-2">
               {filtered.length === 0 && (
                 <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
@@ -774,7 +588,7 @@ export default function Admin() {
                 message={toast.message}
                 actionLabel="Deshacer"
                 onAction={toast.onUndo}
-                onDismiss={() => setToast(null)}
+                onDismiss={dismissToast}
               />
             )}
           </>
@@ -1012,6 +826,15 @@ export default function Admin() {
         </div>
         </div>
       </div>
+
+      {editPanel !== null && (
+        <PlayerEditPanel
+          member={editPanel.member}
+          categorias={categorias}
+          onSave={() => { setEditPanel(null); load(); }}
+          onClose={() => setEditPanel(null)}
+        />
+      )}
     </div>
   );
 }
