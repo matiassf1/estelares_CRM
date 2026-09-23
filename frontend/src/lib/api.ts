@@ -57,6 +57,63 @@ export interface CheckInEntry {
   checked_in_at: string;
 }
 
+// ── Analytics types ───────────────────────────────────────────────────────────
+
+export interface AnalyticsDateRange { from: string; to: string; categoryId?: number }
+
+export interface OverviewData {
+  total_checkins: number;
+  unique_members: number;
+  active_members: number;
+  checkins_prev_period: number;
+  trend_pct: number | null;
+  avg_daily: number;
+  by_day: { date: string; count: number }[];
+  top_members: { id: string; nombre: string; apellido: string; count: number }[];
+  inactive_members: { id: string; nombre: string; apellido: string; last_checkin: string | null }[];
+  active_categories: { id: number; nombre: string; count: number }[];
+}
+
+export interface CategoryAnalytics {
+  categoria: { id: number; nombre: string };
+  total_checkins: number;
+  unique_members: number;
+  active_members: number;
+  by_day: { date: string; count: number }[];
+  members: {
+    id: string; nombre: string; apellido: string;
+    count: number; avg_hour: number | null; last_checkin: string | null;
+  }[];
+  schedules: {
+    id: number; day_of_week: number; start_time: string;
+    tolerance_min: number; valid_from: string; valid_until: string | null;
+  }[];
+}
+
+export interface MemberAnalytics {
+  member: { id: string; nombre: string; apellido: string; categoria_id: number | null; categoria_nombre: string | null };
+  total_checkins: number;
+  avg_hour: number | null;
+  sessions_expected: number;
+  attendance_pct: number | null;
+  days_since_last: number | null;
+  history: { date: string; hour_decimal: number; schedule_match: 'early' | 'on_time' | 'late' | 'unscheduled' | null }[];
+}
+
+export interface TrafficData {
+  by_hour: { hour: number; count: number }[];
+  by_weekday: { weekday: number; count: number }[];
+  heatmap: { weekday: number; hour: number; count: number }[];
+}
+
+export interface Insight { type: string; severity: 'info' | 'warning'; message: string; data?: unknown }
+
+export interface TrainingSchedule {
+  id: number; categoria_id: number; categoria_nombre?: string;
+  day_of_week: number; start_time: string; tolerance_min: number;
+  valid_from: string; valid_until: string | null;
+}
+
 export const api = {
   login: (dni: string, password: string) =>
     request<{ token: string; user: { nombre: string; apellido: string; dni: string } }>('/auth/login', {
@@ -144,4 +201,35 @@ export const api = {
 
   deleteParking: (id: number) =>
     request<{ ok: boolean }>(`/parking/${id}`, { method: 'DELETE' }),
+
+  analyticsOverview: (params: AnalyticsDateRange) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    if (params.categoryId != null) q.set('categoryId', String(params.categoryId));
+    return request<OverviewData>(`/admin/analytics/overview?${q}`);
+  },
+  analyticsCategory: (id: number, params: AnalyticsDateRange) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    return request<CategoryAnalytics>(`/admin/analytics/categories/${id}?${q}`);
+  },
+  analyticsMember: (id: string, params: AnalyticsDateRange) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    return request<MemberAnalytics>(`/admin/analytics/members/${id}?${q}`);
+  },
+  analyticsTraffic: (params: AnalyticsDateRange) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    if (params.categoryId != null) q.set('categoryId', String(params.categoryId));
+    return request<TrafficData>(`/admin/analytics/traffic?${q}`);
+  },
+  analyticsInsights: (params: AnalyticsDateRange) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    return request<Insight[]>(`/admin/analytics/insights?${q}`);
+  },
+  getTrainingSchedules: (categoriaId?: number) => {
+    const q = categoriaId != null ? `?categoriaId=${categoriaId}` : '';
+    return request<TrainingSchedule[]>(`/admin/training-schedules${q}`);
+  },
+  createTrainingSchedule: (data: Omit<TrainingSchedule, 'id' | 'categoria_nombre'>) =>
+    request<TrainingSchedule>('/admin/training-schedules', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTrainingSchedule: (id: number) =>
+    request<{ ok: boolean }>(`/admin/training-schedules/${id}`, { method: 'DELETE' }),
 };
