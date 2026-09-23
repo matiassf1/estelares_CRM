@@ -353,6 +353,7 @@ export default function Admin() {
     .filter(m => {
       if (memberFilter === 'inactivos') return !m.activo;
       if (memberFilter === 'sin_foto') return m.activo && !m.foto_url;
+      // 'hoy': member list lacks per-member check-in date; card shows stats.today count only
       return true;
     })
     .filter(m => filterCatId ? m.categoria_id === filterCatId : true);
