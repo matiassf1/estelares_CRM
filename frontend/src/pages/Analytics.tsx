@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import type { OverviewData, CategoryAnalytics, MemberAnalytics, TrafficData, Insight, AnalyticsDateRange } from '../lib/api';
 import MiniBar from '../components/analytics/MiniBar';
 import HeatmapGrid from '../components/analytics/HeatmapGrid';
+import { formatLastSeen } from '../utils/time';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -327,7 +328,7 @@ function CategoryPanel({
                   <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>
                     {m.avg_hour != null ? formatHour(m.avg_hour) : '—'}
                   </td>
-                  <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{m.last_checkin ?? '—'}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{formatLastSeen(m.last_checkin)}</td>
                 </tr>
               ))}
               {sorted.length === 0 && (
