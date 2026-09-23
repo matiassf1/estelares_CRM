@@ -25,7 +25,7 @@ export default function ActionMenu({ items }: ActionMenuProps) {
 
   const colorStyle = (color: ActionMenuItem['color'] = 'default') => {
     if (color === 'gold') return { color: 'var(--brand-gold)' };
-    if (color === 'red') return { color: 'var(--brand-primary)' };
+    if (color === 'red') return { color: '#f87171' };
     return { color: 'var(--brand-accent)' };
   };
 
