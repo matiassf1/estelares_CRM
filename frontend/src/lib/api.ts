@@ -182,8 +182,8 @@ export const api = {
   getCategorias: () =>
     request<Categoria[]>('/categorias'),
 
-  createCategoria: (nombre: string) =>
-    request<Categoria>('/categorias', { method: 'POST', body: JSON.stringify({ nombre }) }),
+  createCategoria: (nombre: string, color?: string) =>
+    request<Categoria>('/categorias', { method: 'POST', body: JSON.stringify({ nombre, ...(color ? { color } : {}) }) }),
 
   deleteCategoria: (id: number) =>
     request<{ ok: boolean }>(`/categorias/${id}`, { method: 'DELETE' }),
