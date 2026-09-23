@@ -39,6 +39,9 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -57,7 +60,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
     if (!file) return;
     setForm(prev => ({ ...prev, foto_url: '' }));
     const compressed = await compressImage(file, 400);
-    setForm(prev => ({ ...prev, foto_url: compressed }));
+    if (mountedRef.current) setForm(prev => ({ ...prev, foto_url: compressed }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
