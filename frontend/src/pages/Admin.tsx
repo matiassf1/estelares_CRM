@@ -224,6 +224,8 @@ function PlayerList({
   );
 }
 
+type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
+
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -232,6 +234,8 @@ export default function Admin() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
   const [search, setSearch] = useState('');
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>('todos');
+  const [filterCatId, setFilterCatId] = useState<number | null>(null);
   const [editPanel, setEditPanel] = useState<{ member: Member | null } | null>(null);
 
   // Parking state
@@ -340,9 +344,18 @@ export default function Admin() {
     await api.deleteCategoria(c.id); load();
   };
 
-  const filtered = members.filter(m =>
-    `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const inactivos = members.filter(m => !m.activo).length;
+  const sinFoto = members.filter(m => m.activo && !m.foto_url).length;
+  const cocherasLibres = spots.filter(s => !s.member_id).length;
+
+  const filtered = members
+    .filter(m => `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase()))
+    .filter(m => {
+      if (memberFilter === 'inactivos') return !m.activo;
+      if (memberFilter === 'sin_foto') return m.activo && !m.foto_url;
+      return true;
+    })
+    .filter(m => filterCatId ? m.categoria_id === filterCatId : true);
 
   return (
     <div className="min-h-screen pattern-lines" style={{ backgroundColor: 'var(--brand-bg)' }}>
@@ -418,36 +431,9 @@ export default function Admin() {
               </button>
             ))}
           </nav>
-          <div className="px-5 py-4" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Ingresos hoy</span>
-                <span className="text-sm font-bold text-white">{stats.today}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Activos</span>
-                <span className="text-sm font-bold text-white">{stats.total}</span>
-              </div>
-            </div>
-          </div>
         </aside>
 
         <div className="flex-1 p-5 md:p-8 min-w-0">
-
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-3 mb-6 mt-2 md:hidden">
-          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up"
-            style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-primary)' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Ingresos hoy</p>
-            <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.today}</p>
-          </div>
-          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up" style={{ animationDelay: '0.06s', backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-accent)' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Activos</p>
-            <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.total}</p>
-          </div>
-        </div>
 
         {/* ── Tabs ── */}
         <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
@@ -492,6 +478,56 @@ export default function Admin() {
                 >
                   + AGREGAR
                 </button>
+              </div>
+
+              {/* Metric cards */}
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 mt-3 md:grid md:grid-cols-4 scrollbar-none">
+                {[
+                  { label: 'Ingresos hoy', value: stats.today, color: '#3FB56B', filter: 'hoy' as MemberFilter },
+                  { label: 'Activos', value: stats.total, color: 'white', filter: 'todos' as MemberFilter },
+                  { label: 'Inactivos', value: inactivos, color: 'var(--brand-gold)', filter: 'inactivos' as MemberFilter },
+                  { label: 'Cocheras libres', value: cocherasLibres, color: 'white', filter: 'todos' as MemberFilter },
+                ].map(card => (
+                  <button
+                    key={card.label}
+                    onClick={() => setMemberFilter(memberFilter === card.filter && card.filter !== 'todos' ? 'todos' : card.filter)}
+                    className="flex-shrink-0 flex-1 min-w-[120px] rounded-xl p-3 text-left transition-all active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--brand-surface)',
+                      border: memberFilter === card.filter && card.filter !== 'todos'
+                        ? '1px solid rgb(var(--brand-primary-rgb) / 0.5)'
+                        : '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
+                    }}
+                  >
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-muted)' }}>{card.label}</p>
+                    <p className="font-display text-2xl" style={{ color: card.color, lineHeight: 1 }}>{card.value}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Filter chips */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 mt-2 -mx-5 px-5 md:mx-0 md:px-0 scrollbar-none">
+                {(['todos', 'hoy', 'inactivos', 'sin_foto'] as const).map(chip => (
+                  <button
+                    key={chip}
+                    onClick={() => setMemberFilter(chip)}
+                    className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                    style={memberFilter === chip
+                      ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
+                      : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
+                  >
+                    {chip === 'todos' ? `Todos ${members.length}` : chip === 'hoy' ? `Hoy ${stats.today}` : chip === 'inactivos' ? `Inactivos ${inactivos}` : `Sin foto ${sinFoto}`}
+                  </button>
+                ))}
+                <select
+                  value={filterCatId ?? ''}
+                  onChange={e => setFilterCatId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold appearance-none outline-none"
+                  style={{ color: filterCatId ? 'var(--brand-accent)' : 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)', backgroundColor: 'var(--brand-surface)' }}
+                >
+                  <option value="">Categoría</option>
+                  {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
               </div>
             </div>
 
