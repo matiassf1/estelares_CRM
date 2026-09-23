@@ -5,6 +5,7 @@ import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
 import { compressImage } from '../utils/image.ts';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
+import Analytics from './Analytics';
 
 type FormData = {
   nombre: string; apellido: string; dni: string; patente: string;
@@ -237,7 +238,7 @@ function PlayerList({
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'jugadores' | 'categorias' | 'parking'>('jugadores');
+  const [tab, setTab] = useState<'jugadores' | 'categorias' | 'parking' | 'analitica'>('jugadores');
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
@@ -416,7 +417,7 @@ export default function Admin() {
             </div>
           </div>
           <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-            {(['jugadores', 'categorias', 'parking'] as const).map(t => (
+            {(['jugadores', 'categorias', 'parking', 'analitica'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -434,12 +435,16 @@ export default function Admin() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
                   </svg>
-                ) : (
+                ) : t === 'parking' ? (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                   </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
                 )}
-                {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
+                {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : t === 'parking' ? 'Parking' : 'Analítica'}
               </button>
             ))}
           </nav>
@@ -476,13 +481,13 @@ export default function Admin() {
 
         {/* ── Tabs ── */}
         <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
-          {(['jugadores', 'categorias', 'parking'] as const).map(t => (
+          {(['jugadores', 'categorias', 'parking', 'analitica'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
               style={tab === t
                 ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
                 : { color: 'var(--brand-muted)' }}>
-              {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : 'Parking'}
+              {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : t === 'parking' ? 'Parking' : 'Analítica'}
             </button>
           ))}
         </div>
@@ -490,7 +495,7 @@ export default function Admin() {
         {/* ── Desktop section title ── */}
         <div className="hidden md:block mb-6 mt-2">
           <h2 className="text-xl font-semibold text-white tracking-wide">
-            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : 'Parking'}
+            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : tab === 'parking' ? 'Parking' : 'Analítica'}
           </h2>
         </div>
 
@@ -923,6 +928,8 @@ export default function Admin() {
             )}
           </>
         )}
+        {/* ──────────── ANALÍTICA ──────────── */}
+        {tab === 'analitica' && <Analytics />}
         </div>
         </div>
       </div>
