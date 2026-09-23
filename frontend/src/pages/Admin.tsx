@@ -10,6 +10,8 @@ import BottomSheet from '../components/admin/BottomSheet';
 import ConfirmModal from '../components/admin/ConfirmModal';
 import Toast from '../components/admin/Toast';
 import PlayerEditPanel from '../components/admin/PlayerEditPanel';
+import CategoryDrawer from '../components/admin/CategoryDrawer';
+import CategoryDetailView from '../components/admin/CategoryDetailView';
 
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
@@ -44,7 +46,6 @@ function avatarColor(name: string): string {
 }
 
 type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
-const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
 
 export default function Admin() {
   const { logout } = useAuth();
@@ -66,9 +67,10 @@ export default function Admin() {
   const [assigningSpotId, setAssigningSpotId] = useState<number | null>(null);
 
   // Categorias state
-  const [newCategoria, setNewCategoria] = useState('');
-  const [catError, setCatError] = useState('');
-  const [addingCat, setAddingCat] = useState(false);
+  const [catView, setCatView] = useState<Categoria | null>(null);
+  const [catDrawer, setCatDrawer] = useState<{ mode: 'create' | 'edit'; cat: Categoria | null } | null>(null);
+  const [deleteCatTarget, setDeleteCatTarget] = useState<Categoria | null>(null);
+
   const load = useCallback(async () => {
     const [m, s, c] = await Promise.all([api.getMembers(), api.getStats(), api.getCategorias()]);
     setMembers(m); setStats(s); setCategorias(c);
@@ -111,14 +113,12 @@ export default function Admin() {
     setDeleteTarget(null);
   };
 
-  const handleUpdateCatColor = async (id: number, color: string) => {
-    const prev = categorias.find(c => c.id === id)?.color;
-    setCategorias(cs => cs.map(c => c.id === id ? { ...c, color } : c));
-    try {
-      await api.updateCategoria(id, { color });
-    } catch {
-      setCategorias(cs => cs.map(c => c.id === id ? { ...c, color: prev } : c));
-    }
+  const handleDeleteCategoria = async () => {
+    if (!deleteCatTarget) return;
+    await api.deleteCategoria(deleteCatTarget.id);
+    setDeleteCatTarget(null);
+    setCatView(null);
+    load();
   };
 
   const playerActionItems = (m: Member) => [
@@ -147,20 +147,6 @@ export default function Admin() {
   const handleDeleteSpot = async (spot: ParkingSpot) => {
     if (!confirm(`¿Eliminar espacio ${spot.spot_number}?`)) return;
     await api.deleteParking(spot.id); loadSpots();
-  };
-
-  const handleAddCategoria = async (e: React.FormEvent) => {
-    e.preventDefault(); setCatError(''); setAddingCat(true);
-    try {
-      await api.createCategoria(newCategoria.trim());
-      setNewCategoria(''); load();
-    } catch (err) {
-      setCatError(err instanceof Error ? err.message : 'Error');
-    } finally { setAddingCat(false); }
-  };
-  const handleDeleteCategoria = async (c: Categoria) => {
-    if (!confirm(`¿Eliminar categoría "${c.nombre}"?\nLos jugadores de esta categoría quedarán sin categoría asignada.`)) return;
-    await api.deleteCategoria(c.id); load();
   };
 
   const inactivos = members.filter(m => !m.activo).length;
@@ -530,146 +516,154 @@ export default function Admin() {
         {/* ──────────── CATEGORÍAS ──────────── */}
         {tab === 'categorias' && (
           <>
-            <div
-              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
-              style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
-            >
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
-                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                  {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <form onSubmit={handleAddCategoria} className="flex gap-2">
-                <input
-                  type="text" placeholder="Nombre de categoría (ej. Primera A)"
-                  value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
-                  className="input-field flex-1"
-                />
-                <button
-                  type="submit"
-                  disabled={addingCat || !newCategoria.trim()}
-                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+            {catView ? (
+              <CategoryDetailView
+                categoria={catView}
+                members={members.filter(m => m.categoria_id === catView.id)}
+                categorias={categorias}
+                onBack={() => setCatView(null)}
+                onEditMember={openEdit}
+                onCreateMember={openCreate}
+              />
+            ) : (
+              <>
+                {/* Header */}
+                <div
+                  className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
+                  style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
                 >
-                  + AGREGAR
-                </button>
-              </form>
-            </div>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
+                    <button
+                      onClick={() => setCatDrawer({ mode: 'create', cat: null })}
+                      className="font-display tracking-widest text-white text-sm px-4 py-2 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                      style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                    >
+                      + Nueva
+                    </button>
+                  </div>
+                </div>
 
-            {catError && (
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mb-4 animate-slide-up"
-                style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{catError}</p>
-              </div>
+                {/* 2-col grid */}
+                {categorias.length === 0 ? (
+                  <div className="text-center py-16 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+                    No hay categorías creadas
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {categorias.map(c => {
+                      const catMembers = members
+                        .filter(m => m.categoria_id === c.id)
+                        .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
+                      const catColor = c.color || '#E5484D';
+                      const preview = catMembers.slice(0, 5);
+                      const overflow = catMembers.length - 5;
+                      return (
+                        <div
+                          key={c.id}
+                          className="rounded-2xl overflow-hidden flex flex-col"
+                          style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.18)' }}
+                        >
+                          {/* Card header */}
+                          <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                              <div className="min-w-0">
+                                <p className="text-white font-bold text-base leading-tight truncate">{c.nombre}</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+                                  {catMembers.length} jugador{catMembers.length !== 1 ? 'es' : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <ActionMenu items={[
+                              { label: 'Editar categoría', onClick: () => setCatDrawer({ mode: 'edit', cat: c }) },
+                              { label: 'Eliminar…', color: 'red' as const, onClick: () => setDeleteCatTarget(c) },
+                            ]} />
+                          </div>
+
+                          {/* Avatar preview strip */}
+                          <div className="px-4 py-3 flex-1" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}>
+                            {catMembers.length === 0 ? (
+                              <p className="text-xs py-1 text-center" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.35)' }}>
+                                Sin jugadores asignados
+                              </p>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {preview.map(m => {
+                                  const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
+                                  return (
+                                    <div
+                                      key={m.id}
+                                      className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+                                      style={{
+                                        backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor,
+                                        border: '2px solid rgb(var(--brand-accent-rgb) / 0.15)',
+                                        opacity: m.activo ? 1 : 0.4,
+                                      }}
+                                    >
+                                      {m.foto_url
+                                        ? <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
+                                        : <span className="text-xs font-bold text-white">{getInitials(m.apellido, m.nombre)}</span>
+                                      }
+                                    </div>
+                                  );
+                                })}
+                                {overflow > 0 && (
+                                  <div
+                                    className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                                    style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.12)', color: 'var(--brand-accent)', border: '2px solid rgb(var(--brand-accent-rgb) / 0.2)' }}
+                                  >
+                                    +{overflow}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer link */}
+                          <button
+                            onClick={() => setCatView(c)}
+                            className="w-full px-4 py-2.5 text-xs font-semibold tracking-wider text-left transition-colors hover:bg-white/[0.03] active:bg-white/[0.05]"
+                            style={{ color: 'var(--brand-accent)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
+                          >
+                            Ver categoría →
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {categorias.length > 0 && (
+                  <p className="text-center text-xs mt-6 tracking-widest uppercase"
+                    style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
+                    {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </>
             )}
 
-            <div className="space-y-4">
-              {categorias.length === 0 && (
-                <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
-                  No hay categorías creadas
-                </div>
-              )}
-              {categorias.map(c => {
-                const catMembers = members
-                  .filter(m => m.categoria_id === c.id)
-                  .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
-                const catColor = c.color || '#E5484D';
-                return (
-                  <div key={c.id} className="rounded-2xl overflow-hidden"
-                    style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.18)' }}>
+            {deleteCatTarget && (
+              <ConfirmModal
+                title={`¿Eliminar "${deleteCatTarget.nombre}"?`}
+                body="Los jugadores de esta categoría quedarán sin categoría asignada. No se puede deshacer."
+                onCancel={() => setDeleteCatTarget(null)}
+                onConfirm={handleDeleteCategoria}
+                confirmLabel="Eliminar"
+              />
+            )}
 
-                    {/* Card header */}
-                    <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
-                        <div className="min-w-0">
-                          <p className="text-white font-bold text-base leading-tight truncate">{c.nombre}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
-                            {catMembers.length} jugador{catMembers.length !== 1 ? 'es' : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Color swatches */}
-                        <div className="flex gap-1">
-                          {CATEGORY_COLORS.map(hex => (
-                            <button
-                              key={hex}
-                              onClick={() => handleUpdateCatColor(c.id, hex)}
-                              className="w-4 h-4 rounded-full transition-transform active:scale-90 flex-shrink-0"
-                              style={{ backgroundColor: hex, outline: c.color === hex ? '2px solid white' : 'none', outlineOffset: '1px' }}
-                            />
-                          ))}
-                        </div>
-                        {/* Delete */}
-                        <button
-                          onClick={() => handleDeleteCategoria(c)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="mx-4" style={{ height: 1, backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.1)' }} />
-
-                    {/* Avatar grid */}
-                    <div className="px-4 py-4">
-                      {catMembers.length === 0 ? (
-                        <p className="text-xs py-2 text-center" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.35)' }}>
-                          Sin jugadores asignados
-                        </p>
-                      ) : (
-                        <div className="flex flex-wrap gap-3">
-                          {catMembers.map(m => {
-                            const initials = getInitials(m.apellido, m.nombre);
-                            const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
-                            const shortName = (m.apellido || m.nombre || '').split(' ')[0].slice(0, 8);
-                            return (
-                              <button
-                                key={m.id}
-                                onClick={() => openEdit(m)}
-                                className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform"
-                                style={{ opacity: m.activo ? 1 : 0.35, width: 56 }}
-                              >
-                                <div
-                                  className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                                  style={{
-                                    backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor,
-                                    border: '2px solid rgb(var(--brand-accent-rgb) / 0.15)',
-                                  }}
-                                >
-                                  {m.foto_url ? (
-                                    <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-sm font-bold text-white">{initials}</span>
-                                  )}
-                                </div>
-                                <span className="text-[10px] font-semibold text-center leading-tight w-full truncate"
-                                  style={{ color: 'var(--brand-muted)' }}>
-                                  {shortName}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {categorias.length > 0 && (
-              <p className="text-center text-xs mt-6 tracking-widest uppercase"
-                style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
-                {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
-              </p>
+            {catDrawer && (
+              <CategoryDrawer
+                mode={catDrawer.mode}
+                categoria={catDrawer.cat}
+                onSave={saved => {
+                  setCatDrawer(null);
+                  if (catView && saved.id === catView.id) setCatView(saved);
+                  load();
+                }}
+                onClose={() => setCatDrawer(null)}
+              />
             )}
           </>
         )}
