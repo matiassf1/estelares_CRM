@@ -30,8 +30,12 @@ router.get('/overview', async (req: Request, res: Response) => {
   const prevTo   = new Date(new Date(from).getTime() - 86400000).toISOString().slice(0, 10);
   const prevFrom = new Date(new Date(from).getTime() - days * 86400000).toISOString().slice(0, 10);
 
-  const catFilter = categoryId ? `AND m.categoria_id = ${categoryId}` : '';
   const dateExpr = CHECKED_IN_DATE_AR;
+
+  // Build params arrays: base [from, to], extended [from, to, categoryId] when filter active
+  const baseParams = [from, to];
+  const catParams  = categoryId != null ? [from, to, categoryId] : [from, to];
+  const catClause  = categoryId != null ? 'AND m.categoria_id = $3' : '';
 
   const [mainStats, prevStats, byDay, topMembers, activeCats] = await Promise.all([
     pool.query(
@@ -40,35 +44,35 @@ router.get('/overview', async (req: Request, res: Response) => {
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catFilter}`,
-      [from, to]
+         AND m.activo = true ${catClause}`,
+      catParams
     ),
     pool.query(
       `SELECT COUNT(c.id) AS total_checkins
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catFilter}`,
-      [prevFrom, prevTo]
+         AND m.activo = true ${catClause}`,
+      categoryId != null ? [prevFrom, prevTo, categoryId] : [prevFrom, prevTo]
     ),
     pool.query(
       `SELECT ${dateExpr} AS date, COUNT(*) AS count
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catFilter}
+         AND m.activo = true ${catClause}
        GROUP BY 1 ORDER BY 1`,
-      [from, to]
+      catParams
     ),
     pool.query(
       `SELECT m.id, m.nombre, m.apellido, COUNT(c.id) AS count
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catFilter}
+         AND m.activo = true ${catClause}
        GROUP BY m.id, m.nombre, m.apellido
        ORDER BY count DESC LIMIT 10`,
-      [from, to]
+      catParams
     ),
     pool.query(
       `SELECT cat.id, cat.nombre, COUNT(c.id) AS count
@@ -79,12 +83,15 @@ router.get('/overview', async (req: Request, res: Response) => {
          AND m.activo = true
        GROUP BY cat.id, cat.nombre
        ORDER BY count DESC`,
-      [from, to]
+      baseParams
     ),
   ]);
 
+  const activeMembersParams = categoryId != null ? [categoryId] : [];
+  const activeMembersClause = categoryId != null ? 'AND categoria_id = $1' : '';
   const activeMembersCount = (await pool.query(
-    `SELECT COUNT(*) AS count FROM members WHERE activo = true ${categoryId ? `AND categoria_id = ${categoryId}` : ''}`
+    `SELECT COUNT(*) AS count FROM members WHERE activo = true ${activeMembersClause}`,
+    activeMembersParams
   )).rows[0].count;
 
   const inactiveRes = await pool.query(
@@ -92,16 +99,16 @@ router.get('/overview', async (req: Request, res: Response) => {
             MAX(${dateExpr}) AS last_checkin
      FROM members m
      LEFT JOIN check_ins c ON c.member_id = m.id
-     WHERE m.activo = true ${catFilter}
+     WHERE m.activo = true ${catClause}
        AND m.id NOT IN (
          SELECT DISTINCT c2.member_id FROM check_ins c2
          JOIN members m2 ON m2.id = c2.member_id
-         WHERE ${dateExpr} BETWEEN $1 AND $2 AND m2.activo = true ${catFilter}
+         WHERE ${dateExpr} BETWEEN $1 AND $2 AND m2.activo = true ${catClause}
        )
      GROUP BY m.id, m.nombre, m.apellido
      ORDER BY last_checkin DESC NULLS LAST
      LIMIT 20`,
-    [from, to]
+    catParams
   );
 
   const total = parseInt(mainStats.rows[0].total_checkins);
