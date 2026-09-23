@@ -13,6 +13,7 @@ router.get('/', async (_req, res) => {
 router.post('/', async (req, res) => {
   const { nombre, orden = 0, color } = req.body;
   if (!nombre) { res.status(400).json({ error: 'nombre es requerido' }); return; }
+  if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) { res.status(400).json({ error: 'color debe ser hex #RRGGBB' }); return; }
   try {
     const { rows } = await pool.query(
       'INSERT INTO categorias (nombre, orden, color) VALUES ($1, $2, $3) RETURNING *',
@@ -33,7 +34,10 @@ router.put('/:id', async (req, res) => {
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (nombre !== undefined) { sets.push(`nombre = $${sets.length + 1}`); vals.push(String(nombre).trim()); }
-  if (color !== undefined) { sets.push(`color = $${sets.length + 1}`); vals.push(color); }
+  if (color !== undefined) {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) { res.status(400).json({ error: 'color debe ser hex #RRGGBB' }); return; }
+    sets.push(`color = $${sets.length + 1}`); vals.push(color);
+  }
   if (sets.length === 0) { res.status(400).json({ error: 'Nada que actualizar' }); return; }
   vals.push(req.params.id);
   const { rows } = await pool.query(

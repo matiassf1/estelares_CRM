@@ -305,8 +305,13 @@ export default function Admin() {
   const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
 
   const handleUpdateCatColor = async (id: number, color: string) => {
-    await api.updateCategoria(id, { color });
-    setCategorias(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+    const prev = categorias.find(c => c.id === id)?.color;
+    setCategorias(cs => cs.map(c => c.id === id ? { ...c, color } : c));
+    try {
+      await api.updateCategoria(id, { color });
+    } catch {
+      setCategorias(cs => cs.map(c => c.id === id ? { ...c, color: prev } : c));
+    }
   };
 
   const playerActionItems = (m: Member) => [

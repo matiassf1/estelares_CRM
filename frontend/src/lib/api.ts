@@ -188,12 +188,13 @@ export const api = {
   deleteCategoria: (id: number) =>
     request<{ ok: boolean }>(`/categorias/${id}`, { method: 'DELETE' }),
 
-  updateCategoria: async (id: number, data: Partial<{ nombre: string; color: string }>) => {
+  updateCategoria: async (id: number, data: Partial<{ nombre: string; color: string }>): Promise<Categoria> => {
     const res = await fetch(`${BASE}/categorias/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
       body: JSON.stringify(data),
     });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Error actualizando categoría');
     return res.json();
   },
 
