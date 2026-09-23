@@ -76,9 +76,9 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
             <button
               key={t}
               onClick={() => setActiveTab(t)}
-              className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all relative ${activeTab === t ? 'text-white' : ''}`}
+              className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all relative"
               style={activeTab === t
-                ? { color: '#ffffff', borderBottom: '2px solid var(--brand-primary)' }
+                ? { color: '#ffffff', borderBottom: '2px solid #E5484D' }
                 : { color: 'var(--brand-muted)', borderBottom: '2px solid transparent' }
               }
             >
