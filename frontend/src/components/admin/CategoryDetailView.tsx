@@ -312,19 +312,22 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                   </div>
                 )}
 
-                {/* Member table */}
+                {/* Member table / cards */}
                 <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.12)' }}>
-                  <div className="px-4 py-2.5 flex gap-1.5 items-center flex-wrap border-b" style={{ borderColor: 'rgba(201,168,76,0.1)' }}>
+                  {/* Sort header */}
+                  <div className="px-4 py-2.5 flex gap-1.5 items-center border-b" style={{ borderColor: 'rgba(201,168,76,0.1)' }}>
                     <span className="text-[9px] uppercase tracking-widest mr-auto" style={{ color: 'var(--brand-accent)' }}>Jugadores</span>
                     {(['count', 'avg_hour', 'apellido'] as const).map(s => (
                       <button key={s} onClick={() => setAnalyticsSort(s)}
-                        className="text-[9px] px-2 py-1 rounded uppercase tracking-wider"
+                        className="text-[9px] px-2 py-1 rounded uppercase tracking-wider flex-shrink-0"
                         style={{ backgroundColor: analyticsSort === s ? '#E5484D' : 'var(--brand-bg)', color: analyticsSort === s ? '#fff' : 'var(--brand-muted)' }}>
-                        {s === 'count' ? 'Asistencias' : s === 'avg_hour' ? 'Hora' : 'Nombre'}
+                        {s === 'count' ? 'Asist.' : s === 'avg_hour' ? 'Hora' : 'Nombre'}
                       </button>
                     ))}
                   </div>
-                  <div className="overflow-x-auto">
+
+                  {/* Desktop table */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
@@ -349,6 +352,26 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="md:hidden divide-y" style={{ borderColor: 'rgba(201,168,76,0.06)' }}>
+                    {[...analytics.members]
+                      .sort((a, b) => analyticsSort === 'count' ? b.count - a.count : analyticsSort === 'avg_hour' ? (a.avg_hour ?? 99) - (b.avg_hour ?? 99) : a.apellido.localeCompare(b.apellido, 'es'))
+                      .map(m => (
+                        <div key={m.id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{m.apellido}, {m.nombre}</p>
+                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+                              {m.avg_hour != null ? formatHour(m.avg_hour) : '—'} · {formatLastSeen(m.last_checkin)}
+                            </p>
+                          </div>
+                          <span className="text-lg font-bold flex-shrink-0" style={{ color: '#E5484D' }}>{m.count}</span>
+                        </div>
+                      ))}
+                    {analytics.members.length === 0 && (
+                      <div className="px-4 py-8 text-center text-xs" style={{ color: 'var(--brand-muted)' }}>Sin ingresos en los últimos 30 días</div>
+                    )}
                   </div>
                 </div>
               </>
