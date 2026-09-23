@@ -11,7 +11,7 @@ interface MiniBarProps {
 export default function MiniBar({ data, height = 40, color = 'var(--brand-primary)', showAxis = false }: MiniBarProps) {
   if (!data.length) return null;
   const max = Math.max(...data.map(d => d.count), 1);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const W = 100;
   const barW = W / data.length;
   const axisH = showAxis ? 20 : 0;
@@ -28,7 +28,7 @@ export default function MiniBar({ data, height = 40, color = 'var(--brand-primar
         const isToday = d.date === today;
         const x = i * barW;
         return (
-          <g key={i}>
+          <g key={d.date}>
             <rect
               x={x + barW * 0.12}
               y={height - barH}
