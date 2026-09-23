@@ -492,12 +492,6 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* ── Desktop section title ── */}
-        <div className="hidden md:block mb-6 mt-2">
-          <h2 className="text-xl font-semibold text-white tracking-wide">
-            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : tab === 'parking' ? 'Parking' : 'Analítica'}
-          </h2>
-        </div>
 
         {/* ── TAB CONTENT ── */}
         <div key={tab} className="animate-fade-in">
@@ -505,18 +499,30 @@ export default function Admin() {
         {/* ──────────── JUGADORES ──────────── */}
         {tab === 'jugadores' && (
           <>
-            <div className="flex gap-2 mb-4 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5"
-              style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
-              <input
-                type="text" placeholder="Buscar jugador..."
-                value={search} onChange={e => setSearch(e.target.value)}
-                className="input-field flex-1"
-              />
-              <button onClick={openCreate}
-                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                + AGREGAR
-              </button>
+            <div
+              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+            >
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-white text-2xl tracking-widest uppercase">Jugadores</h2>
+                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  {members.filter(m => m.activo).length} activos · {stats.today} hoy
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text" placeholder="Buscar por nombre o DNI"
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button
+                  onClick={openCreate}
+                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                >
+                  + AGREGAR
+                </button>
+              </div>
             </div>
 
             {showForm && (
@@ -718,18 +724,32 @@ export default function Admin() {
         {/* ──────────── CATEGORÍAS ──────────── */}
         {tab === 'categorias' && (
           <>
-            <form onSubmit={handleAddCategoria} className="flex gap-2 mb-5 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5" style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
-              <input
-                type="text" placeholder="Nombre de categoría (ej. Primera A)"
-                value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
-                className="input-field flex-1"
-              />
-              <button type="submit" disabled={addingCat || !newCategoria.trim()}
-                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                + AGREGAR
-              </button>
-            </form>
+            <div
+              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+            >
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
+                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <form onSubmit={handleAddCategoria} className="flex gap-2">
+                <input
+                  type="text" placeholder="Nombre de categoría (ej. Primera A)"
+                  value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button
+                  type="submit"
+                  disabled={addingCat || !newCategoria.trim()}
+                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                >
+                  + AGREGAR
+                </button>
+              </form>
+            </div>
 
             {catError && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mb-4 animate-slide-up"
