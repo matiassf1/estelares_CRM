@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
@@ -237,6 +237,14 @@ export default function Login() {
               >
                 {loading ? 'VERIFICANDO...' : 'INGRESAR'}
               </button>
+
+              <Link
+                to="/forgot-password"
+                className="block w-full mt-3 text-center text-xs tracking-wide transition-colors active:text-white"
+                style={{ color: 'var(--brand-muted)' }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
           </form>
         </div>

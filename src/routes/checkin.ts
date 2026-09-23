@@ -73,4 +73,46 @@ router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req
   res.json(rows);
 });
 
+router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
+  const { member_id } = req.body;
+
+  if (!member_id || typeof member_id !== 'string') {
+    res.status(400).json({ error: 'member_id requerido' });
+    return;
+  }
+
+  const { rows: memberRows } = await pool.query(
+    'SELECT id, nombre, apellido, activo FROM members WHERE id = $1',
+    [member_id]
+  );
+
+  if (!memberRows[0]) {
+    res.status(404).json({ error: 'Jugador no encontrado' });
+    return;
+  }
+
+  if (!memberRows[0].activo) {
+    res.status(403).json({ error: 'Jugador inactivo' });
+    return;
+  }
+
+  const today = todayArgentina();
+  const { rows: existingRows } = await pool.query(
+    `SELECT id FROM check_ins WHERE member_id = $1 AND DATE(checked_in_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2`,
+    [member_id, today]
+  );
+
+  if (existingRows.length > 0) {
+    res.json({ ok: true, member: { nombre: memberRows[0].nombre, apellido: memberRows[0].apellido }, already: true });
+    return;
+  }
+
+  await pool.query(
+    "INSERT INTO check_ins (member_id, token_used) VALUES ($1, 'qr-scan') ON CONFLICT DO NOTHING",
+    [member_id]
+  );
+
+  res.json({ ok: true, member: { nombre: memberRows[0].nombre, apellido: memberRows[0].apellido }, already: false });
+});
+
 export default router;

@@ -19,4 +19,14 @@ router.get('/qr', authMiddleware, requireRole('admin', 'portero'), async (req, r
   res.json({ qr: qrDataUrl, token, expiresIn: secondsUntilNext() });
 });
 
+router.get('/carnet-qr', authMiddleware, requireRole('member'), async (req, res) => {
+  const memberId = req.user!.id;
+  const qrDataUrl = await QRCode.toDataURL(memberId, {
+    width: 300,
+    margin: 2,
+    color: { dark: '#000000', light: '#ffffff' },
+  });
+  res.json({ qr: qrDataUrl });
+});
+
 export default router;

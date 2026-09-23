@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { api } from '../lib/api.ts';
 
 interface AuthUser {
+  id?: string;
   type: string;
   nombre?: string;
   apellido?: string;

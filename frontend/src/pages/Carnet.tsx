@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api.ts';
@@ -18,13 +18,75 @@ export default function Carnet({ mock }: Props) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<TodayStatus | null>(mock?.status ?? null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(() => {
+    if (mock || !user?.id) return null;
+    return localStorage.getItem(`qr_cache_${user.id}`);
+  });
 
   const data: CarnetData = mock ?? user ?? {};
 
+  const statusRef = useRef<TodayStatus | null>(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   useEffect(() => {
     if (mock) return;
-    api.todayStatus().then(setStatus).catch(() => setStatus({ ingresado: false }));
+    const fetchStatus = () => { api.todayStatus().then((s) => { setStatus(s); }).catch(() => {}); };
+    fetchStatus();
+    const interval = setInterval(() => { if (!statusRef.current?.ingresado) fetchStatus(); }, 8000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !statusRef.current?.ingresado) fetchStatus();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [mock]);
+
+  useEffect(() => {
+    if (mock || !user?.id) return;
+    api.getCarnetQr()
+      .then(({ qr }) => {
+        setQrDataUrl(qr);
+        localStorage.setItem(`qr_cache_${user.id}`, qr);
+      })
+      .catch(() => {
+        // offline — uses cache loaded in initial state
+      });
+  }, [mock, user?.id]);
+
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError('Las contrasenas no coinciden');
+      return;
+    }
+    if (pwForm.next.length < 6) {
+      setPwError('La nueva contrasena debe tener al menos 6 caracteres');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      await api.changePassword(pwForm.current, pwForm.next);
+      setPwSuccess(true);
+      setPwForm({ current: '', next: '', confirm: '' });
+      setTimeout(() => {
+        setPwSuccess(false);
+        setShowPwForm(false);
+      }, 2500);
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : 'No se pudo cambiar la contrasena');
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   const horaIngreso = status?.hora
     ? new Date(status.hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -33,26 +95,12 @@ export default function Carnet({ mock }: Props) {
   const temporada = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen pattern-lines flex flex-col overflow-y-auto" style={{ backgroundColor: 'var(--brand-bg)' }}>
+    <div className="min-h-screen pattern-lines flex flex-col" style={{ backgroundColor: 'var(--brand-bg)' }}>
       {!mock && (
-        <div className="flex justify-between items-center px-5 pt-5 pb-4 animate-fade-in">
-          {!status?.ingresado ? (
-            <button onClick={() => navigate('/check-in')}
-              className="flex items-center gap-1.5 text-xs uppercase tracking-wider transition-colors active:text-white"
-              style={{ color: 'var(--brand-muted)' }}>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Ingresar
-            </button>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-3">
-            <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
-              Salir
-            </button>
-          </div>
+        <div className="flex justify-end items-center px-5 pt-5 pb-4 animate-fade-in">
+          <button onClick={logout} className="text-xs uppercase tracking-wider active:text-white" style={{ color: 'var(--brand-muted)' }}>
+            Salir
+          </button>
         </div>
       )}
 
@@ -77,11 +125,11 @@ export default function Carnet({ mock }: Props) {
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-0.5"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  style={{ color: 'rgba(255,255,255,0.88)' }}>
                   Estelares Futsal
                 </p>
                 <p className="font-display text-white text-3xl tracking-widest leading-none">CARNET</p>
-                <p className="text-xs tracking-[0.25em] mt-1 gold-glow font-semibold" style={{ color: 'var(--brand-accent-lt)' }}>
+                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
                   TEMPORADA {temporada}
                 </p>
               </div>
@@ -93,8 +141,8 @@ export default function Carnet({ mock }: Props) {
           <div className="px-5 pt-2 pb-5" style={{ backgroundColor: 'var(--brand-surface)' }}>
 
             {/* Photo + name */}
-            <div className="relative z-10 flex items-end gap-4 -mt-10 mb-5">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 animate-scale-in"
+            <div className="relative z-10 flex items-end gap-4 -mt-12 mb-6">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 animate-scale-in"
                 style={{ border: '2px solid var(--brand-accent)', backgroundColor: 'var(--brand-surface-2)', animationDelay: '0.25s' }}>
                 {data.foto_url ? (
                   <img src={data.foto_url} alt={data.nombre} className="w-full h-full object-cover" />
@@ -123,15 +171,18 @@ export default function Carnet({ mock }: Props) {
 
             {/* Info chips */}
             <div className="grid grid-cols-2 gap-2 mb-4 animate-slide-up" style={{ animationDelay: '0.38s' }}>
-              {[
-                { label: 'DNI', value: data.dni || '—' },
-                { label: 'Patente', value: data.patente || '—' },
-              ].map(({ label, value }) => (
-                <div key={label} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.22)' }}>
-                  <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>{label}</p>
-                  <p className="text-white text-sm font-semibold tracking-wide">{value}</p>
+              <div className={`rounded-xl px-3 py-2.5${!data.patente ? ' col-span-2' : ''}`}
+                style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.28)' }}>
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>DNI</p>
+                <p className="text-white text-sm font-semibold tracking-wide">{data.dni || '—'}</p>
+              </div>
+              {data.patente && (
+                <div className="rounded-xl px-3 py-2.5"
+                  style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.28)' }}>
+                  <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>Patente</p>
+                  <p className="text-white text-sm font-semibold tracking-wide">{data.patente}</p>
                 </div>
-              ))}
+              )}
               {data.estacionamiento && (
                 <div className="col-span-2 rounded-xl px-3 py-2.5 flex items-center gap-3"
                   style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.22)' }}>
@@ -155,9 +206,9 @@ export default function Carnet({ mock }: Props) {
                   style={{ backgroundColor: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)' }}>
                   <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 animate-pulse" />
                   <div>
-                    <p className="text-xs font-bold tracking-wider" style={{ color: '#4ade80' }}>INGRESADO HOY</p>
+                    <p className="text-xs font-bold tracking-wider" style={{ color: '#4ade80' }}>INGRESÓ HOY</p>
                     {horaIngreso && (
-                      <p className="text-xs" style={{ color: 'rgba(74,222,128,0.6)' }}>{horaIngreso} hs · Zona Jugadores</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(74,222,128,0.55)' }}>{horaIngreso} · Zona Jugadores</p>
                     )}
                   </div>
                 </div>
@@ -180,17 +231,105 @@ export default function Carnet({ mock }: Props) {
           {/* FOOTER */}
           <div className="px-5 py-3 flex justify-between items-center"
             style={{ backgroundColor: 'var(--brand-bg)', borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
-            <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.5)' }}>
+            <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.65)' }}>
               Miembro activo
             </p>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--brand-primary)' }} />
-              <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.5)' }}>
+              <p className="text-[10px] tracking-widest uppercase" style={{ color: 'rgb(var(--brand-accent-rgb) / 0.65)' }}>
                 Estelares · {temporada}
               </p>
             </div>
           </div>
         </div>
+
+        {!mock && (
+          <div className="w-full max-w-sm mt-4 rounded-2xl overflow-hidden animate-slide-up"
+            style={{ animationDelay: '0.55s', backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+            <div className="px-5 py-4 flex flex-col items-center gap-3">
+              <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: 'var(--brand-accent)' }}>
+                Mostrá este código al portero
+              </p>
+              {qrDataUrl ? (
+                <div className="rounded-xl overflow-hidden p-3 bg-white">
+                  <img src={qrDataUrl} alt="QR personal" className="w-44 h-44 block" />
+                </div>
+              ) : (
+                <div className="w-44 h-44 rounded-xl animate-pulse flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--brand-surface-2)' }}>
+                  <p className="text-[10px] text-center px-4" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.5)' }}>
+                    Conectate para cargar tu QR
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!mock && (
+          <div className="w-full max-w-sm mt-4 animate-slide-up" style={{ animationDelay: '0.6s' }}>
+            <button
+              type="button"
+              onClick={() => { setShowPwForm((v) => !v); setPwError(''); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[11px] uppercase tracking-[0.2em] transition-opacity hover:opacity-80"
+              style={{ color: 'rgb(var(--brand-accent-rgb) / 0.75)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Cambiar contrasena
+            </button>
+
+            {showPwForm && (
+              <form
+                onSubmit={handleChangePassword}
+                className="mt-3 rounded-2xl px-5 py-4 flex flex-col gap-3"
+                style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}
+              >
+                <input
+                  type="password"
+                  placeholder="Contrasena actual"
+                  value={pwForm.current}
+                  onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
+                  required
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ backgroundColor: 'var(--brand-surface-2)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', color: 'var(--brand-text)' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Nueva contrasena"
+                  value={pwForm.next}
+                  onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })}
+                  required
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ backgroundColor: 'var(--brand-surface-2)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', color: 'var(--brand-text)' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirmar nueva contrasena"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+                  required
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ backgroundColor: 'var(--brand-surface-2)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', color: 'var(--brand-text)' }}
+                />
+
+                {pwError && <p className="text-xs text-red-400">{pwError}</p>}
+                {pwSuccess && <p className="text-xs text-green-400">Contrasena actualizada</p>}
+
+                <button
+                  type="submit"
+                  disabled={pwLoading}
+                  className="w-full py-2.5 rounded-xl text-[11px] uppercase tracking-[0.2em] text-white disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--brand-primary)' }}
+                >
+                  {pwLoading ? 'Guardando...' : 'Guardar'}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
 
         {!mock && <OfflineBanner />}
       </div>

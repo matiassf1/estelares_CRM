@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
 import { useTheme } from './hooks/useTheme.ts';
 import Login from './pages/Login.tsx';
@@ -7,6 +7,20 @@ import Carnet from './pages/Carnet.tsx';
 import Portero from './pages/Portero.tsx';
 import Admin from './pages/Admin.tsx';
 import Preview from './pages/Preview.tsx';
+import ForgotPassword from './pages/ForgotPassword.tsx';
+import ResetPassword from './pages/ResetPassword.tsx';
+import MemberBottomNav from './components/MemberBottomNav.tsx';
+
+function MemberLayout() {
+  return (
+    <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--brand-bg)' }}>
+      <div className="flex-1 pb-16">
+        <Outlet />
+      </div>
+      <MemberBottomNav />
+    </div>
+  );
+}
 
 // Preserves ?t=<token> through the login redirect so a QR scan
 // that lands on /check-in?t=xxx still works even if not yet logged in.
@@ -40,8 +54,12 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login"    element={!user ? <Login />   : <Navigate to="/" replace />} />
-      <Route path="/check-in" element={<CheckInGuard />} />
-      <Route path="/carnet"   element={isMember ? <Carnet />  : <Navigate to="/login" replace />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password"  element={<ResetPassword />} />
+      <Route element={<MemberLayout />}>
+        <Route path="/carnet"   element={isMember ? <Carnet /> : <Navigate to="/login" replace />} />
+        <Route path="/check-in" element={<CheckInGuard />} />
+      </Route>
       <Route path="/portero"  element={isStaff  ? <Portero /> : <Navigate to="/login" replace />} />
       <Route path="/admin"    element={isAdmin  ? <Admin />   : <Navigate to="/login" replace />} />
       <Route
