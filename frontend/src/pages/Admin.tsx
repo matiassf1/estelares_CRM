@@ -7,6 +7,10 @@ import { formatDni, formatPlayerName, getInitials } from '../utils/format';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
 import Analytics from './Analytics';
+import ActionMenu from '../components/admin/ActionMenu';
+import BottomSheet from '../components/admin/BottomSheet';
+import ConfirmModal from '../components/admin/ConfirmModal';
+import Toast from '../components/admin/Toast';
 
 type FormData = {
   nombre: string; apellido: string; dni: string; patente: string;
@@ -183,7 +187,7 @@ function PlayerList({
       ) : (
         <div>
           {players.map(m => {
-            const initials = `${(m.apellido || '')[0] || ''}${(m.nombre || '')[0] || ''}`.toUpperCase();
+            const initials = getInitials(m.apellido, m.nombre);
             const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
             const isOpen = expandedPlayer === m.id;
             return (
@@ -325,11 +329,43 @@ export default function Admin() {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
   };
 
+  const [sheetMember, setSheetMember] = useState<Member | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
+
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
   const handleDelete = async (m: Member) => {
     if (!confirm(`¿Eliminar a ${m.nombre} ${m.apellido}?`)) return;
     await api.deleteMember(m.id); load();
   };
+
+  const handleDeactivate = async (m: Member) => {
+    const wasActive = m.activo;
+    await api.updateMember(m.id, { activo: false });
+    setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: false } : x));
+    setToast({
+      message: `${m.apellido}, ${m.nombre} desactivado`,
+      onUndo: async () => {
+        await api.updateMember(m.id, { activo: wasActive });
+        setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: wasActive } : x));
+      },
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await api.deleteMember(deleteTarget.id);
+    setMembers(prev => prev.filter(x => x.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  const playerActionItems = (m: Member) => [
+    { label: 'Editar datos', onClick: () => openEdit(m) },
+    { label: 'Asignar cochera', onClick: () => setTab('parking') },
+    { separator: true as const, label: m.activo ? 'Desactivar' : 'Activar', color: 'gold' as const,
+      onClick: () => m.activo ? handleDeactivate(m) : handleToggle(m) },
+    { label: 'Eliminar jugador…', color: 'red' as const, onClick: () => setDeleteTarget(m) },
+  ];
 
   const f = (field: keyof FormData) => ({
     value: form[field],
@@ -652,7 +688,8 @@ export default function Admin() {
                 </div>
               )}
               {filtered.map((m) => (
-                <div key={m.id} className="rounded-xl px-4 py-3 transition-all"
+                <div key={m.id} className="rounded-xl px-4 py-3 transition-all cursor-pointer md:cursor-default"
+                  onClick={() => { if (window.innerWidth < 768) setSheetMember(m); }}
                   style={{
                     backgroundColor: 'var(--brand-surface)',
                     border: m.activo ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
@@ -695,25 +732,11 @@ export default function Admin() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0 items-center">
-                      <button onClick={() => openEdit(m)}
-                        className="text-xs px-2.5 py-1 rounded-lg text-[#7A7A7A] border border-[rgba(122,122,122,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:text-white hover:border-[rgba(255,255,255,0.25)] hover:bg-[rgba(255,255,255,0.06)]">
-                        Editar
-                      </button>
-                      <button onClick={() => handleToggle(m)}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold border transition-all duration-150 active:scale-90 ${
-                          m.activo
-                            ? 'text-[rgba(201,168,76,0.7)] border-[rgba(201,168,76,0.2)] bg-transparent hover:text-[#C9A84C] hover:border-[rgba(201,168,76,0.5)] hover:bg-[rgba(201,168,76,0.1)]'
-                            : 'text-[#22c55e] border-[rgba(34,197,94,0.2)] bg-transparent hover:text-white hover:border-[rgba(34,197,94,0.5)] hover:bg-[rgba(34,197,94,0.1)]'
-                        }`}>
-                        {m.activo ? 'Desact.' : 'Activar'}
-                      </button>
-                      <button onClick={() => handleDelete(m)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Desktop: ⋯ menu */}
+                      <div className="hidden md:block" onClick={e => e.stopPropagation()}>
+                        <ActionMenu items={playerActionItems(m)} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -725,6 +748,34 @@ export default function Admin() {
                 style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
                 {filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}
               </p>
+            )}
+
+            {sheetMember && (
+              <BottomSheet
+                title={`${sheetMember.apellido}, ${sheetMember.nombre}`}
+                subtitle={`DNI ${sheetMember.dni}`}
+                items={playerActionItems(sheetMember)}
+                onClose={() => setSheetMember(null)}
+              />
+            )}
+            {deleteTarget && (
+              <ConfirmModal
+                title={`¿Eliminar a ${deleteTarget.nombre} ${deleteTarget.apellido}?`}
+                body="Se borran su carnet, su historial de ingresos y su cochera. No se puede deshacer. Si solo deja de venir, mejor desactivalo."
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={confirmDelete}
+                onAlternative={() => { handleDeactivate(deleteTarget!); setDeleteTarget(null); }}
+                alternativeLabel="Desactivar"
+                confirmLabel="Eliminar"
+              />
+            )}
+            {toast && (
+              <Toast
+                message={toast.message}
+                actionLabel="Deshacer"
+                onAction={toast.onUndo}
+                onDismiss={() => setToast(null)}
+              />
             )}
           </>
         )}
