@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
 import { compressImage } from '../utils/image.ts';
+import { formatDni, formatPlayerName, getInitials } from '../utils/format';
 import ClubShield from '../components/ClubShield.tsx';
 import Input from '../components/Input.tsx';
 import Analytics from './Analytics';
@@ -199,7 +200,7 @@ function PlayerList({
                     {initials}
                   </div>
                   <span className="flex-1 text-sm font-medium text-white">
-                    {m.apellido}, {m.nombre}
+                    {formatPlayerName(m.apellido, m.nombre)}
                   </span>
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
@@ -650,7 +651,7 @@ export default function Admin() {
                   {search ? 'Sin resultados para esa búsqueda' : 'No hay jugadores cargados'}
                 </div>
               )}
-              {filtered.map((m, i) => (
+              {filtered.map((m) => (
                 <div key={m.id} className="rounded-xl px-4 py-3 transition-all"
                   style={{
                     backgroundColor: 'var(--brand-surface)',
@@ -659,19 +660,26 @@ export default function Admin() {
                   }}>
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
+                      <div
+                        className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                        style={{
+                          backgroundColor: m.foto_url ? 'var(--brand-bg)' : avatarColor(`${m.apellido}${m.nombre}`),
+                          border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)',
+                        }}
+                      >
                         {m.foto_url ? (
                           <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="font-display text-sm" style={{ color: 'var(--brand-muted)' }}>{i + 1}</span>
+                          <span className="text-xs font-bold text-white">{getInitials(m.apellido, m.nombre)}</span>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white font-semibold text-sm truncate">{m.nombre} {m.apellido}</p>
+                        <p className="text-white font-semibold text-sm truncate">
+                          {formatPlayerName(m.apellido, m.nombre)}
+                        </p>
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                            DNI {m.dni}{m.patente ? ` · ${m.patente}` : ''}
+                            DNI {formatDni(m.dni)}{m.patente ? ` · ${m.patente}` : ''}
                           </p>
                           {m.tipo_vehiculo && (
                             <span style={{ color: 'var(--brand-muted)' }}>
@@ -679,8 +687,8 @@ export default function Admin() {
                             </span>
                           )}
                           {m.categoria_nombre && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold tracking-wide"
-                              style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.12)', color: 'var(--brand-accent)' }}>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-wide" style={{ color: 'var(--brand-accent)' }}>
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
                               {m.categoria_nombre}
                             </span>
                           )}
