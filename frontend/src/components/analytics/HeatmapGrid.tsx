@@ -36,7 +36,7 @@ export default function HeatmapGrid({ data }: Props) {
 
   return (
     <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${totalW} ${totalH}`} style={{ width: totalW, height: totalH, display: 'block' }}>
+      <svg viewBox={`0 0 ${totalW} ${totalH}`} preserveAspectRatio="xMinYMin meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
         {/* hour labels */}
         {hours.map((h, i) => (
           <text key={h} x={labelW + i * cellW + cellW / 2} y={12}

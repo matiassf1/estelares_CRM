@@ -13,17 +13,15 @@ export default function MiniBar({ data, height = 40, color = 'var(--brand-primar
   const max = Math.max(...data.map(d => d.count), 1);
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const W = 100;
-  // cap bar width so a small dataset doesn't produce giant bars
-  const barW = Math.min(W / data.length, 10);
-  const barsW = barW * data.length;
-  const offsetX = (W - barsW) / 2;
+  const barW = W / data.length;
+  const offsetX = 0;
   const axisH = showAxis ? 20 : 0;
   const totalH = height + axisH;
 
   return (
     <svg
       viewBox={`0 0 ${W} ${totalH}`}
-      preserveAspectRatio="xMidYMax meet"
+      preserveAspectRatio="none"
       style={{ width: '100%', height: showAxis ? height + 24 : height, display: 'block' }}
     >
       {/* baseline */}
