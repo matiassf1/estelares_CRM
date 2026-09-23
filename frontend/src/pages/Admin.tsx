@@ -1,27 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { api, Member, ParkingSpot, Categoria } from '../lib/api.ts';
-import { compressImage } from '../utils/image.ts';
+import { formatDni, formatPlayerName, getInitials } from '../utils/format';
 import ClubShield from '../components/ClubShield.tsx';
-import Input from '../components/Input.tsx';
 import Analytics from './Analytics';
+import ActionMenu from '../components/admin/ActionMenu';
+import BottomSheet from '../components/admin/BottomSheet';
+import ConfirmModal from '../components/admin/ConfirmModal';
+import Toast from '../components/admin/Toast';
+import PlayerEditPanel from '../components/admin/PlayerEditPanel';
 
-type FormData = {
-  nombre: string; apellido: string; dni: string; patente: string;
-  password: string; foto_url: string; categoria_id: string; tipo_vehiculo: string;
-};
-const emptyForm: FormData = {
-  nombre: '', apellido: '', dni: '', patente: '',
-  password: '', foto_url: '', categoria_id: '', tipo_vehiculo: '',
-};
-
-const VEHICULOS = [
-  { value: '', label: 'Ninguno' },
-  { value: 'auto', label: 'Auto' },
-  { value: 'moto', label: 'Moto' },
-  { value: 'bicicleta', label: 'Bici' },
-];
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
   if (!tipo) return null;
@@ -182,7 +171,7 @@ function PlayerList({
       ) : (
         <div>
           {players.map(m => {
-            const initials = `${(m.apellido || '')[0] || ''}${(m.nombre || '')[0] || ''}`.toUpperCase();
+            const initials = getInitials(m.apellido, m.nombre);
             const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
             const isOpen = expandedPlayer === m.id;
             return (
@@ -199,7 +188,7 @@ function PlayerList({
                     {initials}
                   </div>
                   <span className="flex-1 text-sm font-medium text-white">
-                    {m.apellido}, {m.nombre}
+                    {formatPlayerName(m.apellido, m.nombre)}
                   </span>
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
@@ -235,6 +224,9 @@ function PlayerList({
   );
 }
 
+type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
+const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
+
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -242,14 +234,10 @@ export default function Admin() {
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0 });
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormData>(emptyForm);
-  const [formError, setFormError] = useState('');
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>('todos');
+  const [filterCatId, setFilterCatId] = useState<number | null>(null);
+  const [editPanel, setEditPanel] = useState<{ member: Member | null } | null>(null);
 
   // Parking state
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
@@ -276,65 +264,62 @@ export default function Admin() {
 
   useEffect(() => { load(); loadSpots(); }, [load, loadSpots]);
 
-  const openCreate = () => {
-    setForm(emptyForm); setEditingId(null); setFormError(''); setShowForm(true);
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-  };
-  const openEdit = (m: Member) => {
-    setForm({
-      nombre: m.nombre, apellido: m.apellido, dni: m.dni,
-      patente: m.patente || '', password: '', foto_url: m.foto_url || '',
-      categoria_id: m.categoria_id ? String(m.categoria_id) : '',
-      tipo_vehiculo: m.tipo_vehiculo || '',
-    });
-    setEditingId(m.id); setFormError(''); setShowForm(true);
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-  };
-
-  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file, 400);
-    setForm(prev => ({ ...prev, foto_url: compressed }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setFormError(''); setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
-        tipo_vehiculo: form.tipo_vehiculo || null,
-      };
-      if (editingId) {
-        const p = { ...payload } as Partial<Member & { password: string }>;
-        if (!form.password) delete p.password;
-        await api.updateMember(editingId, p);
-      } else {
-        await api.createMember(payload);
-      }
-      setShowForm(false); setEditingId(null); load();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Error');
-    } finally { setSaving(false); }
-  };
+  const openCreate = () => setEditPanel({ member: null });
+  const openEdit = (m: Member) => setEditPanel({ member: m });
 
   const handlePlayerUpdate = async (id: string, changes: Partial<Member>) => {
     await api.updateMember(id, changes);
     setMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
   };
 
+  const [sheetMember, setSheetMember] = useState<Member | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
+
   const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
-  const handleDelete = async (m: Member) => {
+  const _handleDelete = async (m: Member) => {
     if (!confirm(`¿Eliminar a ${m.nombre} ${m.apellido}?`)) return;
     await api.deleteMember(m.id); load();
   };
 
-  const f = (field: keyof FormData) => ({
-    value: form[field],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm(prev => ({ ...prev, [field]: e.target.value })),
-  });
+  const handleDeactivate = async (m: Member) => {
+    const wasActive = m.activo;
+    await api.updateMember(m.id, { activo: false });
+    setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: false } : x));
+    setToast({
+      message: `${m.apellido}, ${m.nombre} desactivado`,
+      onUndo: async () => {
+        await api.updateMember(m.id, { activo: wasActive });
+        setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: wasActive } : x));
+      },
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await api.deleteMember(deleteTarget.id);
+    setMembers(prev => prev.filter(x => x.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  const handleUpdateCatColor = async (id: number, color: string) => {
+    const prev = categorias.find(c => c.id === id)?.color;
+    setCategorias(cs => cs.map(c => c.id === id ? { ...c, color } : c));
+    try {
+      await api.updateCategoria(id, { color });
+    } catch {
+      setCategorias(cs => cs.map(c => c.id === id ? { ...c, color: prev } : c));
+    }
+  };
+
+  const playerActionItems = (m: Member) => [
+    { label: 'Editar datos', onClick: () => openEdit(m) },
+    { label: 'Asignar cochera', onClick: () => setTab('parking') },
+    { separator: true as const, label: m.activo ? 'Desactivar' : 'Activar', color: 'gold' as const,
+      onClick: () => m.activo ? handleDeactivate(m) : handleToggle(m) },
+    { label: 'Eliminar jugador…', color: 'red' as const, onClick: () => setDeleteTarget(m) },
+  ];
 
   const handleAddSpot = async (e: React.FormEvent) => {
     e.preventDefault(); setSpotError(''); setAddingSpot(true);
@@ -370,9 +355,19 @@ export default function Admin() {
     await api.deleteCategoria(c.id); load();
   };
 
-  const filtered = members.filter(m =>
-    `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const inactivos = members.filter(m => !m.activo).length;
+  const sinFoto = members.filter(m => m.activo && !m.foto_url).length;
+  const cocherasLibres = spots.filter(s => !s.member_id).length;
+
+  const filtered = members
+    .filter(m => `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase()))
+    .filter(m => {
+      if (memberFilter === 'inactivos') return !m.activo;
+      if (memberFilter === 'sin_foto') return m.activo && !m.foto_url;
+      // 'hoy': member list lacks per-member check-in date; card shows stats.today count only
+      return true;
+    })
+    .filter(m => filterCatId ? m.categoria_id === filterCatId : true);
 
   return (
     <div className="min-h-screen pattern-lines" style={{ backgroundColor: 'var(--brand-bg)' }}>
@@ -448,36 +443,9 @@ export default function Admin() {
               </button>
             ))}
           </nav>
-          <div className="px-5 py-4" style={{ borderTop: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Ingresos hoy</span>
-                <span className="text-sm font-bold text-white">{stats.today}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)' }}>Activos</span>
-                <span className="text-sm font-bold text-white">{stats.total}</span>
-              </div>
-            </div>
-          </div>
         </aside>
 
         <div className="flex-1 p-5 md:p-8 min-w-0">
-
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 gap-3 mb-6 mt-2 md:hidden">
-          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up"
-            style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-primary)' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Ingresos hoy</p>
-            <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.today}</p>
-          </div>
-          <div className="rounded-2xl p-4 relative overflow-hidden animate-slide-up" style={{ animationDelay: '0.06s', backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
-            <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: 'var(--brand-accent)' }} />
-            <p className="text-[10px] uppercase tracking-wider pl-3 mb-1" style={{ color: 'var(--brand-accent)' }}>Activos</p>
-            <p className="font-display text-white pl-3" style={{ fontSize: '3rem', lineHeight: 1 }}>{stats.total}</p>
-          </div>
-        </div>
 
         {/* ── Tabs ── */}
         <div className="flex gap-1 mb-5 p-1 rounded-xl animate-slide-up md:hidden" style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)', animationDelay: '0.08s' }}>
@@ -492,12 +460,6 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* ── Desktop section title ── */}
-        <div className="hidden md:block mb-6 mt-2">
-          <h2 className="text-xl font-semibold text-white tracking-wide">
-            {tab === 'jugadores' ? 'Jugadores' : tab === 'categorias' ? 'Categorías' : tab === 'parking' ? 'Parking' : 'Analítica'}
-          </h2>
-        </div>
 
         {/* ── TAB CONTENT ── */}
         <div key={tab} className="animate-fade-in">
@@ -505,138 +467,81 @@ export default function Admin() {
         {/* ──────────── JUGADORES ──────────── */}
         {tab === 'jugadores' && (
           <>
-            <div className="flex gap-2 mb-4 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5"
-              style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
-              <input
-                type="text" placeholder="Buscar jugador..."
-                value={search} onChange={e => setSearch(e.target.value)}
-                className="input-field flex-1"
-              />
-              <button onClick={openCreate}
-                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                + AGREGAR
-              </button>
+            <div
+              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+            >
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-white text-2xl tracking-widest uppercase">Jugadores</h2>
+                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  {members.filter(m => m.activo).length} activos · {stats.today} hoy
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text" placeholder="Buscar por nombre o DNI"
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button
+                  onClick={openCreate}
+                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                >
+                  + AGREGAR
+                </button>
+              </div>
+
+              {/* Metric cards */}
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 mt-3 md:grid md:grid-cols-4 scrollbar-none">
+                {[
+                  { label: 'Ingresos hoy', value: stats.today, color: '#3FB56B', filter: 'hoy' as MemberFilter },
+                  { label: 'Activos', value: stats.total, color: 'white', filter: 'todos' as MemberFilter },
+                  { label: 'Inactivos', value: inactivos, color: 'var(--brand-gold)', filter: 'inactivos' as MemberFilter },
+                  { label: 'Cocheras libres', value: cocherasLibres, color: 'white', filter: 'todos' as MemberFilter },
+                ].map(card => (
+                  <button
+                    key={card.label}
+                    onClick={() => setMemberFilter(memberFilter === card.filter && card.filter !== 'todos' ? 'todos' : card.filter)}
+                    className="flex-shrink-0 flex-1 min-w-[120px] rounded-xl p-3 text-left transition-all active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--brand-surface)',
+                      border: memberFilter === card.filter && card.filter !== 'todos'
+                        ? '1px solid rgb(var(--brand-primary-rgb) / 0.5)'
+                        : '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
+                    }}
+                  >
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-muted)' }}>{card.label}</p>
+                    <p className="font-display text-2xl" style={{ color: card.color, lineHeight: 1 }}>{card.value}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Filter chips */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 mt-2 -mx-5 px-5 md:mx-0 md:px-0 scrollbar-none">
+                {(['todos', 'hoy', 'inactivos', 'sin_foto'] as const).map(chip => (
+                  <button
+                    key={chip}
+                    onClick={() => setMemberFilter(chip)}
+                    className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                    style={memberFilter === chip
+                      ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
+                      : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
+                  >
+                    {chip === 'todos' ? `Todos ${members.length}` : chip === 'hoy' ? `Hoy ${stats.today}` : chip === 'inactivos' ? `Inactivos ${inactivos}` : `Sin foto ${sinFoto}`}
+                  </button>
+                ))}
+                <select
+                  value={filterCatId ?? ''}
+                  onChange={e => setFilterCatId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold appearance-none outline-none"
+                  style={{ color: filterCatId ? 'var(--brand-accent)' : 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)', backgroundColor: 'var(--brand-surface)' }}
+                >
+                  <option value="">Categoría</option>
+                  {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+              </div>
             </div>
-
-            {showForm && (
-              <form ref={formRef} onSubmit={handleSubmit} className="rounded-2xl p-5 mb-5 animate-slide-up"
-                style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.35)' }}>
-
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                    <h3 className="font-display text-white tracking-widest text-lg">
-                      {editingId ? 'EDITAR JUGADOR' : 'NUEVO JUGADOR'}
-                    </h3>
-                  </div>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="text-xs uppercase tracking-wider active:text-white"
-                    style={{ color: 'var(--brand-muted)' }}>✕</button>
-                </div>
-
-                {/* Photo */}
-                <div className="flex items-center gap-4 mb-5 pb-5"
-                  style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
-                  <div onClick={() => fileRef.current?.click()}
-                    className="rounded-2xl cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all active:scale-95"
-                    style={{ width: 72, height: 72, backgroundColor: 'var(--brand-bg)', border: '2px dashed rgb(var(--brand-accent-rgb) / 0.3)' }}>
-                    {form.foto_url ? (
-                      <img src={form.foto_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <svg className="w-6 h-6" style={{ color: 'var(--brand-accent)', opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-white text-xs font-semibold mb-0.5">Foto del jugador</p>
-                    <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Opcional · se comprime automáticamente</p>
-                    {form.foto_url && (
-                      <button type="button" onClick={() => setForm(f => ({ ...f, foto_url: '' }))}
-                        className="text-xs mt-1 active:opacity-70" style={{ color: 'var(--brand-primary)' }}>
-                        Quitar foto
-                      </button>
-                    )}
-                  </div>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-                </div>
-
-                {/* Name fields */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <Input label="Nombre" {...f('nombre')} placeholder="Nombre" required />
-                  <Input label="Apellido" {...f('apellido')} placeholder="Apellido" required />
-                </div>
-
-                <div className="space-y-3">
-                  <Input label="DNI" {...f('dni')} placeholder="12345678" inputMode="numeric" required={!editingId} />
-                  <Input label="Patente" {...f('patente')} placeholder="AB 123 CD (opcional)" />
-
-                  {/* Categoría */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Categoría</p>
-                    <select
-                      value={form.categoria_id}
-                      onChange={e => setForm(prev => ({ ...prev, categoria_id: e.target.value }))}
-                      className="input-field w-full"
-                      style={{ backgroundColor: 'var(--brand-bg)', color: form.categoria_id ? 'white' : 'var(--brand-muted)' }}>
-                      <option value="">Sin categoría</option>
-                      {categorias.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Tipo de vehículo */}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-accent)' }}>Vehículo</p>
-                    <div className="flex gap-2">
-                      {VEHICULOS.map(v => (
-                        <button
-                          key={v.value}
-                          type="button"
-                          onClick={() => setForm(prev => ({ ...prev, tipo_vehiculo: v.value }))}
-                          className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
-                          style={form.tipo_vehiculo === v.value
-                            ? { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.2)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.5)' }
-                            : { backgroundColor: 'var(--brand-bg)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
-                          {v.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Input
-                    label={editingId ? 'Nueva contraseña' : 'Contraseña'}
-                    type="password" {...f('password')}
-                    placeholder={editingId ? 'Dejar vacío para no cambiar' : '••••••••'}
-                    required={!editingId}
-                  />
-                </div>
-
-                {formError && (
-                  <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mt-3"
-                    style={{ backgroundColor: 'rgb(var(--brand-primary-rgb) / 0.1)', border: '1px solid rgb(var(--brand-primary-rgb) / 0.3)' }}>
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary)' }} />
-                    <p className="text-sm" style={{ color: 'var(--brand-primary)' }}>{formError}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 mt-5">
-                  <button type="submit" disabled={saving}
-                    className="btn-red flex-1 font-display tracking-widest text-white text-base py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                    {saving ? 'GUARDANDO...' : 'GUARDAR'}
-                  </button>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="px-5 rounded-xl text-sm active:text-white transition-colors"
-                    style={{ backgroundColor: 'var(--brand-surface-2)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            )}
 
             <div className="space-y-2">
               {filtered.length === 0 && (
@@ -644,8 +549,81 @@ export default function Admin() {
                   {search ? 'Sin resultados para esa búsqueda' : 'No hay jugadores cargados'}
                 </div>
               )}
-              {filtered.map((m, i) => (
-                <div key={m.id} className="rounded-xl px-4 py-3 transition-all"
+
+              {/* Desktop table */}
+              {filtered.length > 0 && (
+                <div className="hidden md:block">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+                        <th className="text-left py-2 font-semibold">Jugador</th>
+                        <th className="text-left py-2 font-semibold">Categoría</th>
+                        <th className="text-left py-2 font-semibold">Cochera</th>
+                        <th className="text-left py-2 font-semibold">Estado</th>
+                        <th className="py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(m => {
+                        const cat = categorias.find(c => c.id === m.categoria_id);
+                        const catColor = cat?.color || '#E5484D';
+                        const spot = spots.find(s => s.member_id === m.id);
+                        const initials = getInitials(m.apellido, m.nombre);
+                        return (
+                          <tr
+                            key={m.id}
+                            className="transition-colors hover:bg-white/[0.02]"
+                            style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: m.activo ? 1 : 0.45 }}
+                          >
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ backgroundColor: avatarColor(`${m.apellido}${m.nombre}`) }}>
+                                  {m.foto_url ? <img src={m.foto_url} alt="" className="w-full h-full object-cover rounded-full" /> : initials}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-white">{formatPlayerName(m.apellido, m.nombre)}</p>
+                                  <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>DNI {formatDni(m.dni)}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4">
+                              {cat ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--brand-accent)' }}>
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                  {cat.nombre}
+                                </span>
+                              ) : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                            </td>
+                            <td className="py-3 pr-4 text-xs" style={{ color: spot ? 'var(--brand-accent)' : 'var(--brand-muted)' }}>
+                              {spot ? `Nº ${spot.spot_number}${m.patente ? ` · ${m.patente}` : ''}` : '—'}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span
+                                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                style={m.activo
+                                  ? { backgroundColor: 'rgb(63 181 107 / 0.15)', color: '#3FB56B', border: '1px solid rgb(63 181 107 / 0.3)' }
+                                  : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
+                              >
+                                {m.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <ActionMenu items={playerActionItems(m)} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Mobile cards */}
+              <div className="md:hidden">
+              {filtered.map((m) => (
+                <div key={m.id} className="rounded-xl px-4 py-3 mb-2 transition-all cursor-pointer md:cursor-default"
+                  onClick={() => { if (window.innerWidth < 768) setSheetMember(m); }}
                   style={{
                     backgroundColor: 'var(--brand-surface)',
                     border: m.activo ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
@@ -653,57 +631,55 @@ export default function Admin() {
                   }}>
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: 'var(--brand-bg)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}>
+                      <div
+                        className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                        style={{
+                          backgroundColor: m.foto_url ? 'var(--brand-bg)' : avatarColor(`${m.apellido}${m.nombre}`),
+                          border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)',
+                        }}
+                      >
                         {m.foto_url ? (
                           <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="font-display text-sm" style={{ color: 'var(--brand-muted)' }}>{i + 1}</span>
+                          <span className="text-xs font-bold text-white">{getInitials(m.apellido, m.nombre)}</span>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white font-semibold text-sm truncate">{m.nombre} {m.apellido}</p>
+                        <p className="text-white font-semibold text-sm truncate">
+                          {formatPlayerName(m.apellido, m.nombre)}
+                        </p>
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                            DNI {m.dni}{m.patente ? ` · ${m.patente}` : ''}
+                            DNI {formatDni(m.dni)}{m.patente ? ` · ${m.patente}` : ''}
                           </p>
                           {m.tipo_vehiculo && (
                             <span style={{ color: 'var(--brand-muted)' }}>
                               <VehicleIcon tipo={m.tipo_vehiculo} size={12} />
                             </span>
                           )}
-                          {m.categoria_nombre && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold tracking-wide"
-                              style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.12)', color: 'var(--brand-accent)' }}>
-                              {m.categoria_nombre}
-                            </span>
-                          )}
+                          {m.categoria_nombre && (() => {
+                            const cat = categorias.find(c => c.id === m.categoria_id);
+                            const catColor = cat?.color || '#E5484D';
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold tracking-wide" style={{ color: 'var(--brand-accent)' }}>
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
+                                {m.categoria_nombre}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0 items-center">
-                      <button onClick={() => openEdit(m)}
-                        className="text-xs px-2.5 py-1 rounded-lg text-[#7A7A7A] border border-[rgba(122,122,122,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:text-white hover:border-[rgba(255,255,255,0.25)] hover:bg-[rgba(255,255,255,0.06)]">
-                        Editar
-                      </button>
-                      <button onClick={() => handleToggle(m)}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold border transition-all duration-150 active:scale-90 ${
-                          m.activo
-                            ? 'text-[rgba(201,168,76,0.7)] border-[rgba(201,168,76,0.2)] bg-transparent hover:text-[#C9A84C] hover:border-[rgba(201,168,76,0.5)] hover:bg-[rgba(201,168,76,0.1)]'
-                            : 'text-[#22c55e] border-[rgba(34,197,94,0.2)] bg-transparent hover:text-white hover:border-[rgba(34,197,94,0.5)] hover:bg-[rgba(34,197,94,0.1)]'
-                        }`}>
-                        {m.activo ? 'Desact.' : 'Activar'}
-                      </button>
-                      <button onClick={() => handleDelete(m)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[rgba(204,34,34,0.4)] border border-[rgba(204,34,34,0.15)] bg-transparent transition-all duration-150 active:scale-90 hover:bg-[rgba(204,34,34,0.12)] hover:border-[rgba(204,34,34,0.45)] hover:text-[#FF6B6B]">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Desktop: ⋯ menu */}
+                      <div className="hidden md:block" onClick={e => e.stopPropagation()}>
+                        <ActionMenu items={playerActionItems(m)} />
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
+              </div>
             </div>
 
             {filtered.length > 0 && (
@@ -712,24 +688,66 @@ export default function Admin() {
                 {filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}
               </p>
             )}
+
+            {sheetMember && (
+              <BottomSheet
+                title={`${sheetMember.apellido}, ${sheetMember.nombre}`}
+                subtitle={`DNI ${sheetMember.dni}`}
+                items={playerActionItems(sheetMember)}
+                onClose={() => setSheetMember(null)}
+              />
+            )}
+            {deleteTarget && (
+              <ConfirmModal
+                title={`¿Eliminar a ${deleteTarget.nombre} ${deleteTarget.apellido}?`}
+                body="Se borran su carnet, su historial de ingresos y su cochera. No se puede deshacer. Si solo deja de venir, mejor desactivalo."
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={confirmDelete}
+                onAlternative={() => { handleDeactivate(deleteTarget!); setDeleteTarget(null); }}
+                alternativeLabel="Desactivar"
+                confirmLabel="Eliminar"
+              />
+            )}
+            {toast && (
+              <Toast
+                message={toast.message}
+                actionLabel="Deshacer"
+                onAction={toast.onUndo}
+                onDismiss={dismissToast}
+              />
+            )}
           </>
         )}
 
         {/* ──────────── CATEGORÍAS ──────────── */}
         {tab === 'categorias' && (
           <>
-            <form onSubmit={handleAddCategoria} className="flex gap-2 mb-5 animate-slide-up sticky top-14 z-40 py-3 -mx-5 px-5" style={{ animationDelay: '0.1s', backgroundColor: 'var(--brand-bg)' }}>
-              <input
-                type="text" placeholder="Nombre de categoría (ej. Primera A)"
-                value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
-                className="input-field flex-1"
-              />
-              <button type="submit" disabled={addingCat || !newCategoria.trim()}
-                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
-                + AGREGAR
-              </button>
-            </form>
+            <div
+              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
+            >
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
+                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  {categorias.length} categoría{categorias.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <form onSubmit={handleAddCategoria} className="flex gap-2">
+                <input
+                  type="text" placeholder="Nombre de categoría (ej. Primera A)"
+                  value={newCategoria} onChange={e => setNewCategoria(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button
+                  type="submit"
+                  disabled={addingCat || !newCategoria.trim()}
+                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                >
+                  + AGREGAR
+                </button>
+              </form>
+            </div>
 
             {catError && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 mb-4 animate-slide-up"
@@ -772,6 +790,16 @@ export default function Admin() {
                           <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
                             {count} jugador{count !== 1 ? 'es' : ''}
                           </p>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          {CATEGORY_COLORS.map(hex => (
+                            <button
+                              key={hex}
+                              onClick={e => { e.stopPropagation(); handleUpdateCatColor(c.id, hex); }}
+                              className="w-4 h-4 rounded-full transition-transform active:scale-90 flex-shrink-0"
+                              style={{ backgroundColor: hex, outline: c.color === hex ? '2px solid white' : 'none', outlineOffset: '1px' }}
+                            />
+                          ))}
                         </div>
                       </div>
                       <button
@@ -933,6 +961,15 @@ export default function Admin() {
         </div>
         </div>
       </div>
+
+      {editPanel !== null && (
+        <PlayerEditPanel
+          member={editPanel.member}
+          categorias={categorias}
+          onSave={() => { setEditPanel(null); load(); }}
+          onClose={() => setEditPanel(null)}
+        />
+      )}
     </div>
   );
 }

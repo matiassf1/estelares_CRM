@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import type { OverviewData, CategoryAnalytics, MemberAnalytics, TrafficData, Insight, AnalyticsDateRange } from '../lib/api';
 import MiniBar from '../components/analytics/MiniBar';
 import HeatmapGrid from '../components/analytics/HeatmapGrid';
+import { formatLastSeen } from '../utils/time';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -148,17 +149,19 @@ function OverviewPanel({
   return (
     <div className="flex flex-col gap-6">
       {insights.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}>
+          <p className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-muted)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}>
+            Insights
+          </p>
           {insights.map((ins, i) => (
-            <div key={i} className="rounded-xl px-4 py-3 flex items-start gap-3"
-              style={{
-                backgroundColor: ins.severity === 'warning' ? 'rgba(251,146,60,0.08)' : 'rgba(201,168,76,0.06)',
-                border: `1px solid ${ins.severity === 'warning' ? 'rgba(251,146,60,0.25)' : 'rgba(201,168,76,0.15)'}`,
-              }}>
-              <span style={{ color: ins.severity === 'warning' ? '#fb923c' : 'var(--brand-accent)' }}>
-                {ins.severity === 'warning' ? '⚠' : 'ℹ'}
-              </span>
-              <p className="text-sm" style={{ color: ins.severity === 'warning' ? '#fcd34d' : 'var(--brand-muted)' }}>
+            <div
+              key={i}
+              className="px-4 py-3 flex items-start gap-3"
+              style={{ borderTop: i > 0 ? '1px solid rgb(var(--brand-accent-rgb) / 0.06)' : undefined }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                style={{ backgroundColor: ins.severity === 'warning' ? 'var(--brand-gold)' : 'var(--brand-muted)' }} />
+              <p className="text-sm flex-1" style={{ color: 'var(--brand-accent)', lineHeight: 1.6 }}>
                 {ins.message}
               </p>
             </div>
@@ -176,7 +179,7 @@ function OverviewPanel({
       <div className="rounded-2xl p-4"
         style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgba(201,168,76,0.15)' }}>
         <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--brand-accent)' }}>Ingresos por día</p>
-        <MiniBar data={data.by_day} height={56} />
+        <MiniBar data={data.by_day} height={56} showAxis />
       </div>
 
       {traffic && traffic.heatmap.length > 0 && (
@@ -327,7 +330,7 @@ function CategoryPanel({
                   <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>
                     {m.avg_hour != null ? formatHour(m.avg_hour) : '—'}
                   </td>
-                  <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{m.last_checkin ?? '—'}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>{formatLastSeen(m.last_checkin)}</td>
                 </tr>
               ))}
               {sorted.length === 0 && (

@@ -9,20 +9,22 @@ interface Props {
 }
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const HOURS = [17, 18, 19, 20, 21, 22, 23];
 
 export default function HeatmapGrid({ data, startHour = 7, endHour = 23 }: Props) {
-  const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
-  const max = Math.max(...data.map(d => d.count), 1);
+  const hours = HOURS;
+  const filtered = data.filter(d => HOURS.includes(d.hour));
+  const max = Math.max(...filtered.map(d => d.count), 1);
 
-  const cellW = 28;
-  const cellH = 20;
+  const cellW = 36;
+  const cellH = 24;
   const labelW = 28;
-  const labelH = 16;
+  const labelH = 20;
   const totalW = labelW + hours.length * cellW;
   const totalH = labelH + DAYS.length * cellH;
 
   const getCount = (wd: number, h: number) =>
-    data.find(d => d.weekday === wd && d.hour === h)?.count ?? 0;
+    filtered.find(d => d.weekday === wd && d.hour === h)?.count ?? 0;
 
   return (
     <div className="overflow-x-auto">
