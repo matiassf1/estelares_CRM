@@ -88,9 +88,12 @@
 .animate-slide-up-d3,
 .animate-slide-up-far,
 .animate-scale-in,
-.animate-card-reveal,
-.animate-fade-in {
+.animate-card-reveal {
   will-change: transform, opacity;
+}
+/* opacity-only hint — will-change:transform would break position:fixed children */
+.animate-fade-in {
+  will-change: opacity;
 }
 .animate-diagonal-in { will-change: clip-path; }
 
