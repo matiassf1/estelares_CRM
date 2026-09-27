@@ -34,7 +34,7 @@ export interface AssocMatch {
 }
 
 export interface AccreditationResult {
-  result: 'ACCREDITED' | 'ALREADY_ACCREDITED' | 'NOT_ELIGIBLE' | 'NOT_IN_MATCH' | 'INVALID_QR' | 'ACCREDITATION_CLOSED' | 'PLAYER_NOT_FOUND';
+  result: 'ACCREDITED' | 'ALREADY_ACCREDITED' | 'NOT_ELIGIBLE' | 'NOT_IN_MATCH' | 'NOT_IN_REGISTRY' | 'INVALID_QR' | 'ACCREDITATION_CLOSED' | 'PLAYER_NOT_FOUND';
   player?: {
     id: string;
     firstName: string;

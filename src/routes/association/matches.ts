@@ -102,6 +102,24 @@ router.post('/:id/accredit', async (req, res) => {
     const verifiedId = verifyPlayerQr(qr, player.qr_secret);
     if (!verifiedId) { res.json({ result: 'INVALID_QR' }); return; }
 
+    // Check if player has ANY registration this season (regardless of team) — buena fe case
+    const { rows: anyReg } = await pool.query(
+      `SELECT id FROM player_registrations
+       WHERE player_id = $1 AND season_id = $2 AND deleted_at IS NULL`,
+      [player.id, match.season_id]
+    );
+    if (anyReg.length === 0) {
+      res.json({
+        result: 'NOT_IN_REGISTRY',
+        player: {
+          firstName: player.first_name,
+          lastName: player.last_name,
+          photoUrl: player.photo_url ?? null,
+        },
+      });
+      return;
+    }
+
     // Find registration for this player in either team of the match
     const regRes = await pool.query(
       `SELECT pr.*, t.name as team_name
@@ -118,7 +136,18 @@ router.post('/:id/accredit', async (req, res) => {
     if (!registration) { res.json({ result: 'NOT_IN_MATCH' }); return; }
 
     if (registration.status !== 'ENABLED') {
-      res.json({ result: 'NOT_ELIGIBLE', status: registration.status });
+      res.json({
+        result: 'NOT_ELIGIBLE',
+        status: registration.status,
+        reason: registration.status_reason ?? null,
+        player: {
+          id: player.id,
+          firstName: player.first_name,
+          lastName: player.last_name,
+          photoUrl: player.photo_url ?? null,
+          teamName: registration.team_name,
+        },
+      });
       return;
     }
 

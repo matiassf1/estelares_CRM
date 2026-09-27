@@ -104,7 +104,7 @@ async function seed() {
     { first: 'Carlos',  last: 'Gómez',    doc: '30100003', team: 'EST', status: 'ENABLED'  },
     { first: 'Martín',  last: 'López',    doc: '30100004', team: 'EST', status: 'ENABLED'  },
     // Estelares DISABLED (1) — for demo of rejection
-    { first: 'Roberto', last: 'Díaz',     doc: '30100005', team: 'EST', status: 'DISABLED' },
+    { first: 'Roberto', last: 'Díaz',     doc: '30100005', team: 'EST', status: 'DISABLED', reason: 'Cuota social impaga - Club Estelares' },
     // Rival ENABLED (4)
     { first: 'Diego',   last: 'Torres',   doc: '30200001', team: 'RIV', status: 'ENABLED'  },
     { first: 'Nicolás', last: 'Ruiz',     doc: '30200002', team: 'RIV', status: 'ENABLED'  },
@@ -129,10 +129,10 @@ async function seed() {
 
     const team = teams[pd.team];
     await pool.query(`
-      INSERT INTO player_registrations (player_id, team_id, season_id, status)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (player_id, team_id, season_id) DO UPDATE SET status = EXCLUDED.status
-    `, [player.id, team.id, season.id, pd.status]);
+      INSERT INTO player_registrations (player_id, team_id, season_id, status, status_reason)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (player_id, team_id, season_id) DO UPDATE SET status = EXCLUDED.status, status_reason = EXCLUDED.status_reason
+    `, [player.id, team.id, season.id, pd.status, pd.reason ?? null]);
 
     console.log(`  ${player.first_name} ${player.last_name} → ${pd.team} [${pd.status}] (id: ${player.id})`);
   }
@@ -145,6 +145,19 @@ async function seed() {
     RETURNING *
   `, [assoc.id, teams['EST'].id, teams['RIV'].id, season.id]);
   console.log(`  Estelares Primera vs Rival Primera (id: ${matchRow.id})`);
+
+  // Player with QR but NO registration — buena fe / old season carnet
+  console.log('\nBuena fe player (no registration this season):');
+  const buenaFeSecret = crypto.randomBytes(32).toString('hex');
+  const { rows: [buenaFePlayer] } = await pool.query(`
+    INSERT INTO players (first_name, last_name, document_type, document_number, qr_secret)
+    VALUES ('Miguel', 'Sin Registro', 'DNI', '99999999', $1)
+    ON CONFLICT (document_type, document_number)
+      WHERE document_type IS NOT NULL AND document_number IS NOT NULL AND deleted_at IS NULL
+      DO UPDATE SET qr_secret = EXCLUDED.qr_secret
+    RETURNING *
+  `, [buenaFeSecret]);
+  console.log(`  Miguel Sin Registro (id: ${buenaFePlayer.id}) — sin inscripción en temporada actual`);
 
   // Operators
   console.log('\nOperators:');

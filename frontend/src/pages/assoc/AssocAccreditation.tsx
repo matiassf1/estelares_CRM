@@ -56,6 +56,16 @@ function ResultCard({
       titleColor: '#f87171',
       subtitle: null,
     },
+    NOT_IN_REGISTRY: {
+      bg: 'rgba(139,92,246,0.08)',
+      border: 'rgba(139,92,246,0.25)',
+      icon: '?',
+      iconColor: '#a78bfa',
+      iconBg: 'rgba(139,92,246,0.12)',
+      title: 'NO INSCRIPTO',
+      titleColor: '#a78bfa',
+      subtitle: 'Jugador sin registro en esta temporada',
+    },
     INVALID_QR: {
       bg: 'rgba(248,113,113,0.08)',
       border: 'rgba(248,113,113,0.25)',
