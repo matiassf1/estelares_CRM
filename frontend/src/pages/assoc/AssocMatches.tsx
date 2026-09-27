@@ -82,13 +82,22 @@ export default function AssocMatches() {
           <h1 className="font-display text-white text-lg tracking-wide uppercase">Partidos</h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>Portal de Acreditación</p>
         </div>
-        <button
-          onClick={logout}
-          className="text-xs px-3 py-1.5 rounded-lg transition-all active:opacity-70"
-          style={{ color: 'var(--brand-muted)', backgroundColor: 'rgba(255,255,255,0.05)' }}
-        >
-          Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/assoc/demo/carnets')}
+            className="text-xs px-2 py-1.5 rounded-lg transition-all active:opacity-70"
+            style={{ color: 'var(--brand-muted)', backgroundColor: 'rgba(255,255,255,0.05)' }}
+          >
+            Carnets
+          </button>
+          <button
+            onClick={logout}
+            className="text-xs px-3 py-1.5 rounded-lg transition-all active:opacity-70"
+            style={{ color: 'var(--brand-muted)', backgroundColor: 'rgba(255,255,255,0.05)' }}
+          >
+            Salir
+          </button>
+        </div>
       </div>
 
       <div className="p-5 max-w-lg mx-auto">

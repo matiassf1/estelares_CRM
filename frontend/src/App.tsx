@@ -16,6 +16,7 @@ import AssocMatches from './pages/assoc/AssocMatches.tsx';
 import AssocAccreditation from './pages/assoc/AssocAccreditation.tsx';
 import AssocAccredited from './pages/assoc/AssocAccredited.tsx';
 import AssocPlanilla from './pages/assoc/AssocPlanilla.tsx';
+import AssocDemoCarnets from './pages/assoc/AssocDemoCarnets.tsx';
 
 function MemberLayout() {
   return (
@@ -83,6 +84,7 @@ function AppRoutes() {
         <Route path="/assoc/matches/:matchId/accredit" element={<AssocAccreditation />} />
         <Route path="/assoc/matches/:matchId/accredited" element={<AssocAccredited />} />
         <Route path="/assoc/matches/:matchId/planilla" element={<AssocPlanilla />} />
+        <Route path="/assoc/demo/carnets" element={<AssocDemoCarnets />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
