@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { lockBodyScroll } from '../../utils/scrollLock';
+
 interface ConfirmModalProps {
   title: string;
   body: string;
@@ -11,6 +14,7 @@ interface ConfirmModalProps {
 export default function ConfirmModal({
   title, body, onCancel, onConfirm, onAlternative, alternativeLabel = 'Desactivar', confirmLabel = 'Eliminar'
 }: ConfirmModalProps) {
+  useEffect(() => lockBodyScroll(), []);
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center p-5"
