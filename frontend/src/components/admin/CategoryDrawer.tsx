@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Categoria, api } from '../../lib/api';
+import { lockBodyScroll } from '../../utils/scrollLock';
 
 const CATEGORY_COLORS = ['#E5484D', '#8B5CF6', '#3B82F6', '#14B8A6', '#F97316', '#22C55E'];
 
@@ -17,9 +18,10 @@ export default function CategoryDrawer({ mode, categoria, onSave, onClose }: Cat
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const unlock = lockBodyScroll();
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => { unlock(); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {

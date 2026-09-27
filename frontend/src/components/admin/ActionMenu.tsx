@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { lockBodyScroll } from '../../utils/scrollLock';
 
 interface ActionMenuItem {
   label: string;
@@ -37,9 +38,9 @@ function BottomSheet({ items, header, onClose }: ActionMenuProps & { onClose: ()
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Delay so the initial render is off-screen, then animate in
+    const unlock = lockBodyScroll();
     const t = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(t);
+    return () => { unlock(); cancelAnimationFrame(t); };
   }, []);
 
   const close = () => {

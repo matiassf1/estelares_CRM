@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Member, Categoria, api } from '../../lib/api';
+import { lockBodyScroll } from '../../utils/scrollLock';
 import { compressImage } from '../../utils/image';
 import Input from '../Input';
 import { getInitials } from '../../utils/format';
@@ -44,9 +45,10 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   useEffect(() => {
+    const unlock = lockBodyScroll();
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => { unlock(); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
   const f = (field: keyof FormData) => ({

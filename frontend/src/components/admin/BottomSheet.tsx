@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { lockBodyScroll } from '../../utils/scrollLock';
 
 interface BottomSheetItem {
   label: string;
@@ -25,10 +26,11 @@ export default function BottomSheet({ title, subtitle, items, onClose }: BottomS
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    const unlock = lockBodyScroll();
     const t = requestAnimationFrame(() => setVisible(true));
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
-    return () => { cancelAnimationFrame(t); document.removeEventListener('keydown', onKey); };
+    return () => { unlock(); cancelAnimationFrame(t); document.removeEventListener('keydown', onKey); };
   }, []);
 
   const close = () => {
