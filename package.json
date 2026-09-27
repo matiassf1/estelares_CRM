@@ -8,7 +8,9 @@
     "build:backend": "tsc",
     "build": "npm run build:frontend && npm run build:backend && node scripts/copy-frontend.js",
     "start": "node dist/index.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "seed:assoc": "node scripts/seed-association.js",
+    "reset:demo": "node scripts/reset-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
