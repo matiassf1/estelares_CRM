@@ -5,13 +5,23 @@
  */
 export function lockBodyScroll(): () => void {
   const scrollY = window.scrollY;
-  document.body.dataset.scrollY = String(scrollY);
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
+
+  // iOS Safari ignores overflow:hidden on body. We prevent touchmove at the
+  // document level and only allow it on elements that are themselves scrollable.
+  const prevent = (e: TouchEvent) => {
+    let el = e.target as HTMLElement | null;
+    while (el && el !== document.body) {
+      const ov = window.getComputedStyle(el).overflowY;
+      if ((ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight) return;
+      el = el.parentElement;
+    }
+    e.preventDefault();
+  };
+
+  document.addEventListener('touchmove', prevent as EventListener, { passive: false });
+
   return () => {
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
-    delete document.body.dataset.scrollY;
+    document.removeEventListener('touchmove', prevent as EventListener);
     window.scrollTo(0, scrollY);
   };
 }

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Member, Categoria, api } from '../../lib/api';
 import { lockBodyScroll } from '../../utils/scrollLock';
 import { compressImage } from '../../utils/image';
@@ -93,7 +94,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   const needsPatente = form.tipo_vehiculo === 'auto' || form.tipo_vehiculo === 'moto';
   const initials = getInitials(form.apellido, form.nombre);
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -298,6 +299,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

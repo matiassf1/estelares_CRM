@@ -276,7 +276,7 @@ export default function Admin() {
         {tab === 'jugadores' && (
           <>
             <div
-              className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
+              className="sticky top-28 md:top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
               style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
             >
               <div className="flex items-baseline justify-between mb-3">

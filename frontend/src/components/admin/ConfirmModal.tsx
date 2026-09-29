@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { lockBodyScroll } from '../../utils/scrollLock';
 
 interface ConfirmModalProps {
@@ -15,7 +16,7 @@ export default function ConfirmModal({
   title, body, onCancel, onConfirm, onAlternative, alternativeLabel = 'Desactivar', confirmLabel = 'Eliminar'
 }: ConfirmModalProps) {
   useEffect(() => lockBodyScroll(), []);
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center p-5"
       style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
@@ -54,6 +55,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
