@@ -45,6 +45,7 @@ export default function BottomSheet({ title, subtitle, items, onClose }: BottomS
         backgroundColor: `rgba(0,0,0,${visible ? 0.6 : 0})`,
         backdropFilter: visible ? 'blur(3px)' : 'blur(0px)',
         transition: 'background-color 0.25s ease, backdrop-filter 0.25s ease',
+        touchAction: 'none',
       }}
       onMouseDown={e => { if (e.target === e.currentTarget) close(); }}
       onTouchStart={e => { if (e.target === e.currentTarget) close(); }}

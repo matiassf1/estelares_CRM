@@ -12,6 +12,11 @@ import parkingRoutes from './routes/parking';
 import categoriasRoutes from './routes/categorias';
 import trainingSchedulesRouter from './routes/training-schedules';
 import analyticsRouter from './routes/analytics';
+import { runMigrations } from './migrations/runner';
+import { pool } from './db';
+import assocAuthRouter from './routes/association/auth';
+import assocMatchesRouter from './routes/association/matches';
+import assocPlayersRouter from './routes/association/players';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +39,9 @@ app.use('/api/parking', parkingRoutes);
 app.use('/api/categorias', categoriasRoutes);
 app.use('/api/admin/training-schedules', trainingSchedulesRouter);
 app.use('/api/admin/analytics', analyticsRouter);
+app.use('/api/assoc/auth', assocAuthRouter);
+app.use('/api/assoc/matches', assocMatchesRouter);
+app.use('/api/assoc/players', assocPlayersRouter);
 
 const frontendPath = path.join(__dirname, '../public');
 app.use(express.static(frontendPath));
@@ -50,6 +58,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 async function start() {
   await initDb();
+  await runMigrations(pool);
   app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 }
 

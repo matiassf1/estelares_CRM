@@ -8,7 +8,11 @@
     "build:backend": "tsc",
     "build": "npm run build:frontend && npm run build:backend && node scripts/copy-frontend.js",
     "start": "node dist/index.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "seed:assoc": "node scripts/seed-association.js",
+    "reset:demo": "node scripts/reset-demo.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -34,7 +38,11 @@
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.10.9",
     "@types/qrcode": "^1.5.5",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
   }
 }

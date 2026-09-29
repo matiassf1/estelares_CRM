@@ -51,7 +51,7 @@ function BottomSheet({ items, header, onClose }: ActionMenuProps & { onClose: ()
   return createPortal(
     <div
       className="fixed inset-0 z-[200] flex flex-col justify-end"
-      style={{ backgroundColor: `rgba(0,0,0,${visible ? 0.55 : 0})`, transition: 'background-color 0.25s ease' }}
+      style={{ backgroundColor: `rgba(0,0,0,${visible ? 0.55 : 0})`, transition: 'background-color 0.25s ease', touchAction: 'none' }}
       onMouseDown={e => { if (e.target === e.currentTarget) close(); }}
       onTouchStart={e => { if (e.target === e.currentTarget) close(); }}
     >
