@@ -51,7 +51,7 @@ export default function MiniBar({ data, height = 40, color = '#E5484D', showAxis
               if (!d?.axisLabel) return <g />;
               return (
                 <text
-                  x={x} y={y + 8}
+                  x={x} y={(y as number) + 8}
                   textAnchor={index === 0 ? 'start' : index === chartData.length - 1 ? 'end' : 'middle'}
                   fontSize={9}
                   fill={d.isToday ? '#3FB56B' : 'rgba(255,255,255,0.35)'}
