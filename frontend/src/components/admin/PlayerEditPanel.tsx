@@ -43,6 +43,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(true);
+  const fotoRef = useRef(member?.foto_url || '');
 
   useEffect(() => () => { mountedRef.current = false; }, []);
 
@@ -65,6 +66,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
     setPhotoLoading(true);
     try {
       const compressed = await compressImage(file, 400);
+      fotoRef.current = compressed;
       if (mountedRef.current) setForm(prev => ({ ...prev, foto_url: compressed }));
     } catch (err) {
       console.warn('[PlayerEditPanel] compressImage failed:', err);
@@ -81,6 +83,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
     try {
       const payload = {
         ...form,
+        foto_url: fotoRef.current,
         categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
         tipo_vehiculo: form.tipo_vehiculo || null,
       };
