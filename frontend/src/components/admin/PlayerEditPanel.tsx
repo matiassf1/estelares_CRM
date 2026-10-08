@@ -42,10 +42,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const mountedRef = useRef(true);
   const fotoRef = useRef(member?.foto_url || '');
-
-  useEffect(() => () => { mountedRef.current = false; }, []);
 
   useEffect(() => {
     const unlock = lockBodyScroll();
@@ -67,7 +64,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
     try {
       const compressed = await compressImage(file, 400);
       fotoRef.current = compressed;
-      if (mountedRef.current) setForm(prev => ({ ...prev, foto_url: compressed }));
+      setForm(prev => ({ ...prev, foto_url: compressed }));
     } catch (err) {
       console.warn('[PlayerEditPanel] compressImage failed:', err);
       alert('No se pudo procesar la imagen. Probá con otra foto.');
