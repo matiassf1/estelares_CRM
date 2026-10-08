@@ -72,7 +72,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
       console.warn('[PlayerEditPanel] compressImage failed:', err);
       alert('No se pudo procesar la imagen. Probá con otra foto.');
     } finally {
-      if (mountedRef.current) setPhotoLoading(false);
+      setPhotoLoading(false);
     }
   };
 
@@ -312,11 +312,11 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
           <button
             type="submit"
             form="player-edit-form"
-            disabled={saving}
+            disabled={saving || photoLoading}
             className="flex-1 py-3 rounded-xl font-display tracking-widest text-white text-sm transition-all active:scale-95 disabled:opacity-50"
             style={{ backgroundColor: 'var(--brand-primary)' }}
           >
-            {saving ? 'GUARDANDO…' : 'GUARDAR'}
+            {saving ? 'GUARDANDO…' : photoLoading ? 'CARGANDO FOTO…' : 'GUARDAR'}
           </button>
         </div>
       </div>
