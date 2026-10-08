@@ -39,6 +39,7 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(true);
@@ -61,9 +62,16 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setForm(prev => ({ ...prev, foto_url: '' }));
-    const compressed = await compressImage(file, 400);
-    if (mountedRef.current) setForm(prev => ({ ...prev, foto_url: compressed }));
+    setPhotoLoading(true);
+    try {
+      const compressed = await compressImage(file, 400);
+      if (mountedRef.current) setForm(prev => ({ ...prev, foto_url: compressed }));
+    } catch (err) {
+      console.warn('[PlayerEditPanel] compressImage failed:', err);
+      alert('No se pudo procesar la imagen. Probá con otra foto.');
+    } finally {
+      if (mountedRef.current) setPhotoLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +123,17 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
           className="flex items-center gap-3 px-5 py-4 flex-shrink-0"
           style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
         >
-          {form.foto_url ? (
+          {photoLoading ? (
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'var(--brand-primary)' }}
+            >
+              <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            </div>
+          ) : form.foto_url ? (
             <img
               src={form.foto_url}
               alt=""
