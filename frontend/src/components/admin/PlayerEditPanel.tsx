@@ -123,32 +123,26 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
           className="flex items-center gap-3 px-5 py-4 flex-shrink-0"
           style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}
         >
-          {photoLoading ? (
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: 'var(--brand-primary)' }}
-            >
-              <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
-            </div>
-          ) : form.foto_url ? (
-            <img
-              src={form.foto_url}
-              alt=""
-              className="w-10 h-10 rounded-full object-cover cursor-pointer flex-shrink-0"
-              onClick={() => fileRef.current?.click()}
-            />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 cursor-pointer"
-              style={{ backgroundColor: 'var(--brand-primary)' }}
-              onClick={() => fileRef.current?.click()}
-            >
-              {initials || '?'}
-            </div>
-          )}
+          <div className="relative w-10 h-10 flex-shrink-0 cursor-pointer" onClick={() => fileRef.current?.click()}>
+            {form.foto_url ? (
+              <img src={form.foto_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                style={{ backgroundColor: 'var(--brand-primary)' }}
+              >
+                {initials || '?'}
+              </div>
+            )}
+            {photoLoading && (
+              <div className="absolute inset-0 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+                <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+              </div>
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <p className="font-display text-white text-base tracking-wide uppercase truncate">
               {isNew ? 'Nuevo jugador' : `${form.apellido || '...'} ${form.nombre || ''}`}
