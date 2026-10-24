@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../lib/api.ts';
+import { api, type MembershipStatus } from '../lib/api.ts';
 
 interface AuthUser {
   id?: string;
@@ -11,6 +11,13 @@ interface AuthUser {
   patente?: string;
   foto_url?: string;
   estacionamiento?: string;
+  /** Estado administrativo. Un suspendido se autentica igual, pero no ingresa. */
+  membership?: {
+    status: MembershipStatus;
+    since: string | null;
+    until: string | null;
+    reason: string | null;
+  };
 }
 
 interface AuthContextValue {

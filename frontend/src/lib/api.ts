@@ -28,6 +28,8 @@ export interface Categoria {
   color?: string;
 }
 
+export type MembershipStatus = 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
+
 export interface Member {
   id: string;
   nombre: string;
@@ -35,10 +37,53 @@ export interface Member {
   dni: string;
   patente?: string;
   foto_url?: string;
+  /** @deprecated Derivado de `status`. Se elimina al cerrar la ventana de compatibilidad. */
   activo: boolean;
+  status: MembershipStatus;
+  status_since?: string | null;
+  status_until?: string | null;
+  status_reason?: string | null;
+  needs_review?: boolean;
   tipo_vehiculo?: string | null;
   categoria_id?: number | null;
   categoria_nombre?: string | null;
+}
+
+export interface MembershipState {
+  member_id: string;
+  status: MembershipStatus;
+  status_since: string | null;
+  status_until: string | null;
+  status_reason: string | null;
+  period_id: string | null;
+  needs_review: boolean;
+}
+
+export interface MembershipPeriod {
+  id: string;
+  kind: 'SUSPENSION' | 'TERMINATION';
+  effective_from: string;
+  effective_until: string | null;
+  reason: string;
+  created_at: string;
+  closed_at: string | null;
+  cancelled_at: string | null;
+  legacy_migrated: boolean;
+}
+
+export interface MembershipEvent {
+  id: string;
+  action: string;
+  reason: string | null;
+  performed_at: string;
+  performed_by_username: string | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+}
+
+export interface MembershipHistory {
+  periods: MembershipPeriod[];
+  events: MembershipEvent[];
 }
 
 export interface ParkingSpot {
@@ -129,7 +174,11 @@ export const api = {
     }),
 
   me: () =>
-    request<{ type: string; nombre?: string; apellido?: string; username?: string; dni?: string; patente?: string; foto_url?: string; estacionamiento?: string }>('/auth/me'),
+    request<{
+      type: string; nombre?: string; apellido?: string; username?: string;
+      dni?: string; patente?: string; foto_url?: string; estacionamiento?: string;
+      membership?: { status: MembershipStatus; since: string | null; until: string | null; reason: string | null };
+    }>('/auth/me'),
 
   todayStatus: () =>
     request<{ ingresado: boolean; hora?: string }>('/check-in/today-status'),
@@ -164,8 +213,33 @@ export const api = {
   resetPassword: (token: string, newPassword: string) =>
     request<{ ok: boolean }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
 
-  getMembers: () =>
-    request<Member[]>('/admin/members'),
+  getMembers: (status?: MembershipStatus) =>
+    request<Member[]>(`/admin/members${status ? `?status=${status}` : ''}`),
+
+  // ── Membresía administrativa ────────────────────────────────────────────────
+  suspendMember: (id: string, data: { effective_from?: string; effective_until?: string | null; reason: string }) =>
+    request<{ period: MembershipPeriod; state: MembershipState }>(
+      `/admin/members/${id}/suspend`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
+
+  terminateMember: (id: string, data: { effective_from?: string; reason: string }) =>
+    request<{ period: MembershipPeriod; state: MembershipState }>(
+      `/admin/members/${id}/terminate`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
+
+  reactivateMember: (id: string, data: { effective_from?: string; reason?: string } = {}) =>
+    request<{ status: MembershipStatus; noop: boolean; state: MembershipState }>(
+      `/admin/members/${id}/reactivate`,
+      { method: 'POST', body: JSON.stringify(data) }
+    ),
+
+  getMembership: (id: string) =>
+    request<MembershipState>(`/admin/members/${id}/membership`),
+
+  getMembershipHistory: (id: string) =>
+    request<MembershipHistory>(`/admin/members/${id}/membership/history`),
 
   createMember: (data: { nombre: string; apellido: string; dni: string; patente?: string; password: string; categoria_id?: number | null; tipo_vehiculo?: string | null }) =>
     request<Member>('/admin/members', { method: 'POST', body: JSON.stringify(data) }),
@@ -173,11 +247,13 @@ export const api = {
   updateMember: (id: string, data: Partial<Member & { password: string }>) =>
     request<Member>(`/admin/members/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-  deleteMember: (id: string) =>
-    request<{ ok: boolean }>(`/admin/members/${id}`, { method: 'DELETE' }),
+  // deleteMember se retiró: el borrado físico destruía el historial de
+  // asistencias (check_ins tiene ON DELETE CASCADE). Usar terminateMember.
 
   getStats: () =>
-    request<{ today: number; total: number }>('/admin/stats'),
+    request<{ today: number; activos: number; suspendidos: number; bajas: number; total: number }>(
+      '/admin/stats'
+    ),
 
   getCategorias: () =>
     request<Categoria[]>('/categorias'),

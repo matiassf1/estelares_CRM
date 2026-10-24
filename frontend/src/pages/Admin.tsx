@@ -12,6 +12,9 @@ import Toast from '../components/admin/Toast';
 import PlayerEditPanel from '../components/admin/PlayerEditPanel';
 import CategoryDrawer from '../components/admin/CategoryDrawer';
 import CategoryDetailView from '../components/admin/CategoryDetailView';
+import MembershipBadge from '../components/admin/MembershipBadge';
+import MembershipSheet, { type MembershipOp } from '../components/admin/MembershipSheet';
+import MembershipTimeline from '../components/admin/MembershipTimeline';
 
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
@@ -45,7 +48,7 @@ function avatarColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-type MemberFilter = 'todos' | 'hoy' | 'inactivos' | 'sin_foto';
+type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
 
 export default function Admin() {
   const { logout } = useAuth();
@@ -55,7 +58,7 @@ export default function Admin() {
   const lastScrollY = useRef(0);
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [stats, setStats] = useState({ today: 0, total: 0 });
+  const [stats, setStats] = useState({ today: 0, total: 0, activos: 0, suspendidos: 0, bajas: 0 });
   const [search, setSearch] = useState('');
   const [memberFilter, setMemberFilter] = useState<MemberFilter>('todos');
   const [filterCatId, setFilterCatId] = useState<number | null>(null);
@@ -100,31 +103,10 @@ export default function Admin() {
   const openEdit = (m: Member) => setEditPanel({ member: m });
 
   const [sheetMember, setSheetMember] = useState<Member | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [membershipSheet, setMembershipSheet] = useState<{ member: Member; op: MembershipOp } | null>(null);
+  const [historyMember, setHistoryMember] = useState<Member | null>(null);
   const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
-
-  const handleToggle = async (m: Member) => { await api.updateMember(m.id, { activo: !m.activo }); load(); };
-
-  const handleDeactivate = async (m: Member) => {
-    const wasActive = m.activo;
-    await api.updateMember(m.id, { activo: false });
-    setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: false } : x));
-    setToast({
-      message: `${m.apellido}, ${m.nombre} desactivado`,
-      onUndo: async () => {
-        await api.updateMember(m.id, { activo: wasActive });
-        setMembers(prev => prev.map(x => x.id === m.id ? { ...x, activo: wasActive } : x));
-      },
-    });
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    await api.deleteMember(deleteTarget.id);
-    setMembers(prev => prev.filter(x => x.id !== deleteTarget.id));
-    setDeleteTarget(null);
-  };
 
   const handleDeleteCategoria = async () => {
     if (!deleteCatTarget) return;
@@ -134,13 +116,38 @@ export default function Admin() {
     load();
   };
 
-  const playerActionItems = (m: Member) => [
-    { label: 'Editar datos', onClick: () => openEdit(m) },
-    { label: 'Asignar cochera', onClick: () => setTab('parking') },
-    { separator: true as const, label: m.activo ? 'Desactivar' : 'Activar', color: 'gold' as const,
-      onClick: () => m.activo ? handleDeactivate(m) : handleToggle(m) },
-    { label: 'Eliminar jugador…', color: 'red' as const, onClick: () => setDeleteTarget(m) },
-  ];
+  /**
+   * Acciones disponibles según el estado administrativo. La eliminación física
+   * ya no se ofrece: destruía el historial de asistencias. Su reemplazo es la
+   * baja, que lo conserva y admite reactivación.
+   */
+  const playerActionItems = (m: Member) => {
+    const status = m.status || 'ACTIVE';
+    const openOp = (op: MembershipOp) => () => setMembershipSheet({ member: m, op });
+    const verHistorial = { label: 'Ver historial', onClick: () => setHistoryMember(m) };
+
+    if (status === 'TERMINATED') {
+      return [
+        verHistorial,
+        { separator: true as const, label: 'Reactivar', color: 'gold' as const, onClick: openOp('reactivate') },
+      ];
+    }
+    if (status === 'SUSPENDED') {
+      return [
+        { label: 'Editar datos', onClick: () => openEdit(m) },
+        verHistorial,
+        { separator: true as const, label: 'Reactivar', color: 'gold' as const, onClick: openOp('reactivate') },
+        { label: 'Dar de baja…', color: 'red' as const, onClick: openOp('terminate') },
+      ];
+    }
+    return [
+      { label: 'Editar datos', onClick: () => openEdit(m) },
+      { label: 'Asignar cochera', onClick: () => setTab('parking') },
+      verHistorial,
+      { separator: true as const, label: 'Suspender membresía…', color: 'gold' as const, onClick: openOp('suspend') },
+      { label: 'Dar de baja…', color: 'red' as const, onClick: openOp('terminate') },
+    ];
+  };
 
   const handleAddSpot = async (e: React.FormEvent) => {
     e.preventDefault(); setSpotError(''); setAddingSpot(true);
@@ -162,15 +169,31 @@ export default function Admin() {
     await api.deleteParking(spot.id); loadSpots();
   };
 
-  const inactivos = members.filter(m => !m.activo).length;
-  const sinFoto = members.filter(m => m.activo && !m.foto_url).length;
+  const isActive = (m: Member) => (m.status || 'ACTIVE') === 'ACTIVE';
+  const suspendidos = members.filter(m => m.status === 'SUSPENDED').length;
+  const bajas = members.filter(m => m.status === 'TERMINATED').length;
+  // Jugadores migrados del booleano anterior: el motivo real nunca se registró
+  // y el club debe reclasificarlos uno por uno.
+  const enRevision = members.filter(m => m.needs_review).length;
+  const sinFoto = members.filter(m => isActive(m) && !m.foto_url).length;
   const cocherasLibres = spots.filter(s => !s.member_id).length;
+
+  const CHIP_LABEL: Record<MemberFilter, string> = {
+    todos: `Todos ${members.length}`,
+    hoy: `Hoy ${stats.today}`,
+    suspendidos: `Suspendidos ${suspendidos}`,
+    bajas: `Bajas ${bajas}`,
+    revision: `Revisar ${enRevision}`,
+    sin_foto: `Sin foto ${sinFoto}`,
+  };
 
   const filtered = members
     .filter(m => `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase()))
     .filter(m => {
-      if (memberFilter === 'inactivos') return !m.activo;
-      if (memberFilter === 'sin_foto') return m.activo && !m.foto_url;
+      if (memberFilter === 'suspendidos') return m.status === 'SUSPENDED';
+      if (memberFilter === 'bajas') return m.status === 'TERMINATED';
+      if (memberFilter === 'revision') return !!m.needs_review;
+      if (memberFilter === 'sin_foto') return isActive(m) && !m.foto_url;
       // 'hoy': member list lacks per-member check-in date; card shows stats.today count only
       return true;
     })
@@ -282,7 +305,7 @@ export default function Admin() {
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="font-display text-white text-2xl tracking-widest uppercase">Jugadores</h2>
                 <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                  {members.filter(m => m.activo).length} activos · {stats.today} hoy
+                  {stats.activos} activos · {stats.today} hoy
                 </span>
               </div>
               <div className="flex gap-2">
@@ -301,11 +324,12 @@ export default function Admin() {
               </div>
 
               {/* Metric cards */}
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 mt-3 md:grid md:grid-cols-4 scrollbar-none">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 mt-3 md:grid md:grid-cols-5 scrollbar-none">
                 {[
                   { label: 'Ingresos hoy', value: stats.today, color: '#3FB56B', filter: 'hoy' as MemberFilter },
-                  { label: 'Activos', value: stats.total, color: 'white', filter: 'todos' as MemberFilter },
-                  { label: 'Inactivos', value: inactivos, color: 'var(--brand-gold)', filter: 'inactivos' as MemberFilter },
+                  { label: 'Activos', value: stats.activos, color: 'white', filter: 'todos' as MemberFilter },
+                  { label: 'Suspendidos', value: stats.suspendidos, color: 'var(--brand-gold)', filter: 'suspendidos' as MemberFilter },
+                  { label: 'Bajas', value: stats.bajas, color: '#f87171', filter: 'bajas' as MemberFilter },
                   { label: 'Cocheras libres', value: cocherasLibres, color: 'white', filter: 'todos' as MemberFilter },
                 ].map(card => (
                   <button
@@ -327,7 +351,7 @@ export default function Admin() {
 
               {/* Filter chips */}
               <div className="flex gap-1.5 overflow-x-auto pb-1 mt-2 -mx-5 px-5 md:mx-0 md:px-0 scrollbar-none">
-                {(['todos', 'hoy', 'inactivos', 'sin_foto'] as const).map(chip => (
+                {(['todos', 'hoy', 'suspendidos', 'bajas', ...(enRevision > 0 ? ['revision' as const] : []), 'sin_foto'] as MemberFilter[]).map(chip => (
                   <button
                     key={chip}
                     onClick={() => setMemberFilter(chip)}
@@ -336,7 +360,7 @@ export default function Admin() {
                       ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
                       : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
                   >
-                    {chip === 'todos' ? `Todos ${members.length}` : chip === 'hoy' ? `Hoy ${stats.today}` : chip === 'inactivos' ? `Inactivos ${inactivos}` : `Sin foto ${sinFoto}`}
+                    {CHIP_LABEL[chip]}
                   </button>
                 ))}
                 <select
@@ -381,7 +405,7 @@ export default function Admin() {
                           <tr
                             key={m.id}
                             className="transition-colors hover:bg-white/[0.02]"
-                            style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: m.activo ? 1 : 0.45 }}
+                            style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: isActive(m) ? 1 : 0.55 }}
                           >
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-3">
@@ -407,14 +431,7 @@ export default function Admin() {
                               {spot ? `Nº ${spot.spot_number}${m.patente ? ` · ${m.patente}` : ''}` : '—'}
                             </td>
                             <td className="py-3 pr-4">
-                              <span
-                                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                                style={m.activo
-                                  ? { backgroundColor: 'rgb(63 181 107 / 0.15)', color: '#3FB56B', border: '1px solid rgb(63 181 107 / 0.3)' }
-                                  : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }}
-                              >
-                                {m.activo ? 'Activo' : 'Inactivo'}
-                              </span>
+                              <MembershipBadge member={m} withDetail />
                             </td>
                             <td className="py-3">
                               <ActionMenu items={playerActionItems(m)} />
@@ -434,8 +451,8 @@ export default function Admin() {
                   onClick={() => { if (window.innerWidth < 768) setSheetMember(m); }}
                   style={{
                     backgroundColor: 'var(--brand-surface)',
-                    border: m.activo ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
-                    opacity: m.activo ? 1 : 0.45,
+                    border: isActive(m) ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
+                    opacity: isActive(m) ? 1 : 0.55,
                   }}>
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0">
@@ -505,15 +522,21 @@ export default function Admin() {
                 onClose={() => setSheetMember(null)}
               />
             )}
-            {deleteTarget && (
+            {membershipSheet && (
+              <MembershipSheet
+                member={membershipSheet.member}
+                op={membershipSheet.op}
+                onClose={() => setMembershipSheet(null)}
+                onDone={message => { setToast({ message }); load(); }}
+              />
+            )}
+            {historyMember && (
               <ConfirmModal
-                title={`¿Eliminar a ${deleteTarget.nombre} ${deleteTarget.apellido}?`}
-                body="Se borran su carnet, su historial de ingresos y su cochera. No se puede deshacer. Si solo deja de venir, mejor desactivalo."
-                onCancel={() => setDeleteTarget(null)}
-                onConfirm={confirmDelete}
-                onAlternative={() => { handleDeactivate(deleteTarget!); setDeleteTarget(null); }}
-                alternativeLabel="Desactivar"
-                confirmLabel="Eliminar"
+                title={`Historial de ${historyMember.nombre} ${historyMember.apellido}`}
+                body={<MembershipTimeline memberId={historyMember.id} />}
+                onCancel={() => setHistoryMember(null)}
+                onConfirm={() => setHistoryMember(null)}
+                confirmLabel="Cerrar"
               />
             )}
             {toast && (
@@ -612,7 +635,7 @@ export default function Admin() {
                                       style={{
                                         backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor,
                                         border: '2px solid rgb(var(--brand-accent-rgb) / 0.15)',
-                                        opacity: m.activo ? 1 : 0.4,
+                                        opacity: (m.status || "ACTIVE") === "ACTIVE" ? 1 : 0.4,
                                       }}
                                     >
                                       {m.foto_url
@@ -780,7 +803,7 @@ export default function Admin() {
                           Seleccionar jugador
                         </p>
                         <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {members.filter(m => m.activo).map(m => (
+                          {members.filter(m => (m.status || "ACTIVE") === "ACTIVE").map(m => (
                             <button key={m.id} onClick={() => handleAssign(spot.id, m.id)}
                               className="w-full text-left rounded-lg px-3 py-2.5 text-sm bg-[rgba(201,168,76,0.05)] border border-[rgba(201,168,76,0.1)] text-[#F5F5F0] transition-all duration-150 active:scale-[0.98] hover:bg-[rgba(201,168,76,0.13)] hover:border-[rgba(201,168,76,0.3)] hover:text-[#E8D49E]">
                               <span className="font-semibold">{m.nombre} {m.apellido}</span>

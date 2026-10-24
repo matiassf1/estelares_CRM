@@ -3,6 +3,7 @@ import { Categoria, Member, CategoryAnalytics, api } from '../../lib/api';
 import { formatDni, formatPlayerName, getInitials } from '../../utils/format';
 import { formatLastSeen } from '../../utils/time';
 import ActionMenu from './ActionMenu';
+import MembershipBadge, { STATUS_LABEL } from './MembershipBadge';
 import MiniBar from '../analytics/MiniBar';
 
 function formatHour(h: number) {
@@ -194,7 +195,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                         <tr
                           key={m.id}
                           className="transition-colors hover:bg-white/[0.02] cursor-pointer"
-                          style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: m.activo ? 1 : 0.45 }}
+                          style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: (m.status || 'ACTIVE') === 'ACTIVE' ? 1 : 0.55 }}
                           onClick={() => onEditMember(m)}
                         >
                           <td className="py-3 pr-4">
@@ -213,15 +214,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                             {m.tipo_vehiculo || 'Sin vehículo'}
                           </td>
                           <td className="py-3 pr-4">
-                            <span
-                              className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                              style={m.activo
-                                ? { backgroundColor: 'rgb(63 181 107 / 0.15)', color: '#3FB56B', border: '1px solid rgb(63 181 107 / 0.3)' }
-                                : { backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.08)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)' }
-                              }
-                            >
-                              {m.activo ? 'Activo' : 'Inactivo'}
-                            </span>
+                            <MembershipBadge member={m} withDetail />
                           </td>
                           <td className="py-3" onClick={e => e.stopPropagation()}>
                             <ActionMenu items={[
@@ -250,7 +243,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                       style={{
                         backgroundColor: 'var(--brand-surface)',
                         border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)',
-                        opacity: m.activo ? 1 : 0.45,
+                        opacity: (m.status || 'ACTIVE') === 'ACTIVE' ? 1 : 0.55,
                       }}
                     >
                       <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
@@ -262,7 +255,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-white text-sm truncate">{formatPlayerName(m.apellido, m.nombre)}</p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
-                          {m.tipo_vehiculo ? m.tipo_vehiculo.charAt(0).toUpperCase() + m.tipo_vehiculo.slice(1) : 'Sin vehículo'} · {m.activo ? 'Activo' : 'Inactivo'}
+                          {m.tipo_vehiculo ? m.tipo_vehiculo.charAt(0).toUpperCase() + m.tipo_vehiculo.slice(1) : 'Sin vehículo'} · {STATUS_LABEL[m.status || 'ACTIVE']}
                         </p>
                       </div>
                       <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
