@@ -1,60 +1,14 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import path from 'path';
-import { initDb } from './db';
-import authRoutes from './routes/auth';
-import checkinRoutes from './routes/checkin';
-import porteroRoutes from './routes/portero';
-import adminRoutes from './routes/admin';
-import parkingRoutes from './routes/parking';
-import categoriasRoutes from './routes/categorias';
-import trainingSchedulesRouter from './routes/training-schedules';
-import analyticsRouter from './routes/analytics';
+import { createApp } from './app';
+import { initDb, pool } from './db';
 import { runMigrations } from './migrations/runner';
-import { pool } from './db';
-import assocAuthRouter from './routes/association/auth';
-import assocMatchesRouter from './routes/association/matches';
-import assocPlayersRouter from './routes/association/players';
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', 1); // Railway termina SSL en el proxy
-app.use(helmet());
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173',
-  credentials: true,
-}));
-app.use(express.json({ limit: '2mb' }));
-
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-
-app.use('/api/auth', authRoutes);
-app.use('/api/check-in', checkinRoutes);
-app.use('/api/portero', porteroRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/parking', parkingRoutes);
-app.use('/api/categorias', categoriasRoutes);
-app.use('/api/admin/training-schedules', trainingSchedulesRouter);
-app.use('/api/admin/analytics', analyticsRouter);
-app.use('/api/assoc/auth', assocAuthRouter);
-app.use('/api/assoc/matches', assocMatchesRouter);
-app.use('/api/assoc/players', assocPlayersRouter);
-
-const frontendPath = path.join(__dirname, '../public');
-app.use(express.static(frontendPath));
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
-});
-
-// Global error handler — evita que stack traces lleguen al cliente
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ error: 'Error interno del servidor' });
-});
+// Una única definición de la app, compartida con los tests de integración.
+// Antes index.ts replicaba el wiring de app.ts: una ruta montada en uno de los
+// dos archivos pasaba los tests sin existir en producción, o al revés.
+const app = createApp({ serveStatic: true });
 
 async function start() {
   await initDb();
