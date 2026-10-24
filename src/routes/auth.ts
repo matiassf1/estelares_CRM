@@ -31,10 +31,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.status(401).json({ error: 'DNI o contraseña incorrectos' });
     return;
   }
-  if (!member.activo) {
-    res.status(403).json({ error: 'Cuenta suspendida' });
-    return;
-  }
+  // Regla B: autenticación, estado de membresía y permiso de ingreso son tres
+  // condiciones distintas. Un jugador suspendido o dado de baja PUEDE iniciar
+  // sesión y consultar su situación; lo que no puede es registrar un ingreso
+  // (eso lo decide assertCanCheckIn en routes/checkin.ts).
   const token = signToken({ id: member.id, type: 'member' });
   res.json({
     token,
@@ -66,14 +66,28 @@ router.get('/me', authMiddleware, async (req, res) => {
   if (type === 'member') {
     const { rows } = await pool.query(
       `SELECT m.id, m.nombre, m.apellido, m.dni, m.patente, m.foto_url,
-              ps.spot_number AS estacionamiento
+              ps.spot_number AS estacionamiento,
+              -- a texto en SQL: un DATE serializado por pg se convierte a la zona
+              -- local del proceso, y con offset positivo el ISO resultante cae en
+              -- el día anterior.
+              s.status,
+              to_char(s.status_since, 'YYYY-MM-DD') AS status_since,
+              to_char(s.status_until, 'YYYY-MM-DD') AS status_until,
+              s.status_reason
        FROM members m
        LEFT JOIN parking_spots ps ON ps.member_id = m.id
-       WHERE m.id = $1 AND m.activo = true`,
+       JOIN member_membership_state s ON s.member_id = m.id
+       WHERE m.id = $1`,
       [id]
     );
-    if (!rows[0]) { res.status(401).json({ error: 'Cuenta desactivada' }); return; }
-    res.json({ type, ...rows[0] });
+    if (!rows[0]) { res.status(401).json({ error: 'Cuenta no encontrada' }); return; }
+    const { status, status_since, status_until, status_reason, ...profile } = rows[0];
+    // Regla B: el jugador ve su estado administrativo, desde cuándo y hasta cuándo.
+    res.json({
+      type,
+      ...profile,
+      membership: { status, since: status_since, until: status_until, reason: status_reason },
+    });
   } else {
     const { rows } = await pool.query(
       'SELECT id, username, role FROM admins WHERE id = $1',

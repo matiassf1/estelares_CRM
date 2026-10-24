@@ -3,6 +3,7 @@ import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { isValidToken } from '../utils/token';
 import { CHECKED_IN_DATE_AR, todayArgentina } from '../utils/time';
+import { getMembershipState, assertCanCheckIn, MembershipError } from '../services/membership';
 
 const router = Router();
 
@@ -17,10 +18,17 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
 
   // INSERT atómico: el unique index en (member_id, DATE) garantiza
   // que dos requests simultáneas no produzcan check-ins duplicados.
-  const { rows: memberRows } = await pool.query('SELECT activo FROM members WHERE id = $1', [memberId]);
-  if (!memberRows[0]?.activo) {
-    res.status(403).json({ error: 'Cuenta desactivada' });
-    return;
+  // Regla A: el permiso de ingreso se evalúa contra el estado de membresía
+  // vigente en la base, no contra el token. Un JWT emitido antes de la
+  // suspensión sigue autenticando (Regla B) pero no habilita el ingreso.
+  try {
+    assertCanCheckIn(await getMembershipState(memberId));
+  } catch (err) {
+    if (err instanceof MembershipError) {
+      res.status(err.status).json({ error: err.message, details: err.details });
+      return;
+    }
+    throw err;
   }
 
   let inserted: { rowCount: number | null };
@@ -82,7 +90,7 @@ router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async
   }
 
   const { rows: memberRows } = await pool.query(
-    'SELECT id, nombre, apellido, activo FROM members WHERE id = $1',
+    'SELECT id, nombre, apellido FROM members WHERE id = $1',
     [member_id]
   );
 
@@ -91,9 +99,16 @@ router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async
     return;
   }
 
-  if (!memberRows[0].activo) {
-    res.status(403).json({ error: 'Jugador inactivo' });
-    return;
+  // Regla A: misma barrera que el check-in por QR dinámico. Un carnet copiado
+  // o reutilizado tampoco evade la suspensión, porque la decisión se toma acá.
+  try {
+    assertCanCheckIn(await getMembershipState(member_id));
+  } catch (err) {
+    if (err instanceof MembershipError) {
+      res.status(err.status).json({ error: err.message, details: err.details });
+      return;
+    }
+    throw err;
   }
 
   const today = todayArgentina();
