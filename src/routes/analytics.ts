@@ -44,7 +44,7 @@ router.get('/overview', async (req: Request, res: Response) => {
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catClause}`,
+         ${catClause}`,
       catParams
     ),
     pool.query(
@@ -52,7 +52,7 @@ router.get('/overview', async (req: Request, res: Response) => {
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catClause}`,
+         ${catClause}`,
       categoryId != null ? [prevFrom, prevTo, categoryId] : [prevFrom, prevTo]
     ),
     pool.query(
@@ -60,7 +60,7 @@ router.get('/overview', async (req: Request, res: Response) => {
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catClause}
+         ${catClause}
        GROUP BY 1 ORDER BY 1`,
       catParams
     ),
@@ -69,7 +69,7 @@ router.get('/overview', async (req: Request, res: Response) => {
        FROM check_ins c
        JOIN members m ON m.id = c.member_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true ${catClause}
+         ${catClause}
        GROUP BY m.id, m.nombre, m.apellido
        ORDER BY count DESC LIMIT 10`,
       catParams
@@ -80,7 +80,6 @@ router.get('/overview', async (req: Request, res: Response) => {
        JOIN members m ON m.id = c.member_id
        JOIN categorias cat ON cat.id = m.categoria_id
        WHERE ${dateExpr} BETWEEN $1 AND $2
-         AND m.activo = true
        GROUP BY cat.id, cat.nombre
        ORDER BY count DESC`,
       baseParams
@@ -90,7 +89,9 @@ router.get('/overview', async (req: Request, res: Response) => {
   const activeMembersParams = categoryId != null ? [categoryId] : [];
   const activeMembersClause = categoryId != null ? 'AND categoria_id = $1' : '';
   const activeMembersCount = (await pool.query(
-    `SELECT COUNT(*) AS count FROM members WHERE activo = true ${activeMembersClause}`,
+    `SELECT COUNT(*) AS count FROM members m
+     JOIN member_membership_state s ON s.member_id = m.id
+     WHERE s.status = 'ACTIVE' ${activeMembersClause}`,
     activeMembersParams
   )).rows[0].count;
 
@@ -99,11 +100,12 @@ router.get('/overview', async (req: Request, res: Response) => {
             MAX(${dateExpr}) AS last_checkin
      FROM members m
      LEFT JOIN check_ins c ON c.member_id = m.id
-     WHERE m.activo = true ${catClause}
+     JOIN member_membership_state s ON s.member_id = m.id
+     WHERE s.status = 'ACTIVE' ${catClause}
        AND m.id NOT IN (
          SELECT DISTINCT c2.member_id FROM check_ins c2
          JOIN members m2 ON m2.id = c2.member_id
-         WHERE ${dateExpr} BETWEEN $1 AND $2 AND m2.activo = true ${catClause}
+         WHERE ${dateExpr} BETWEEN $1 AND $2 ${catClause.replace('m.', 'm2.')}
        )
      GROUP BY m.id, m.nombre, m.apellido
      ORDER BY last_checkin DESC NULLS LAST
@@ -149,13 +151,13 @@ router.get('/categories/:id', async (req: Request, res: Response) => {
       `SELECT COUNT(c.id) AS total_checkins,
               COUNT(DISTINCT c.member_id) AS unique_members
        FROM check_ins c JOIN members m ON m.id = c.member_id
-       WHERE m.categoria_id = $1 AND ${dateExpr} BETWEEN $2 AND $3 AND m.activo = true`,
+       WHERE m.categoria_id = $1 AND ${dateExpr} BETWEEN $2 AND $3`,
       [catId, from, to]
     ),
     pool.query(
       `SELECT ${dateExpr} AS date, COUNT(*) AS count
        FROM check_ins c JOIN members m ON m.id = c.member_id
-       WHERE m.categoria_id = $1 AND ${dateExpr} BETWEEN $2 AND $3 AND m.activo = true
+       WHERE m.categoria_id = $1 AND ${dateExpr} BETWEEN $2 AND $3
        GROUP BY 1 ORDER BY 1`,
       [catId, from, to]
     ),
@@ -168,7 +170,8 @@ router.get('/categories/:id', async (req: Request, res: Response) => {
        FROM members m
        LEFT JOIN check_ins c ON c.member_id = m.id
          AND ${dateExpr} BETWEEN $2 AND $3
-       WHERE m.categoria_id = $1 AND m.activo = true
+       JOIN member_membership_state s ON s.member_id = m.id
+       WHERE m.categoria_id = $1 AND s.status = 'ACTIVE'
        GROUP BY m.id, m.nombre, m.apellido
        ORDER BY count DESC, m.apellido`,
       [catId, from, to]
@@ -185,7 +188,9 @@ router.get('/categories/:id', async (req: Request, res: Response) => {
   if (!catRes.rows[0]) { res.status(404).json({ error: 'Categoría no encontrada' }); return; }
 
   const activeMembersInCat = (await pool.query(
-    `SELECT COUNT(*) AS count FROM members WHERE categoria_id = $1 AND activo = true`,
+    `SELECT COUNT(*) AS count FROM members m
+     JOIN member_membership_state s ON s.member_id = m.id
+     WHERE m.categoria_id = $1 AND s.status = 'ACTIVE'`,
     [catId]
   )).rows[0].count;
 
@@ -223,7 +228,7 @@ router.get('/traffic', async (req: Request, res: Response) => {
       `SELECT EXTRACT(HOUR FROM (checked_in_at - INTERVAL '3 hours'))::int AS hour,
               COUNT(*) AS count
        FROM check_ins c JOIN members m ON m.id = c.member_id
-       WHERE ${dateExpr} BETWEEN $1 AND $2 AND m.activo = true ${catClause}
+       WHERE ${dateExpr} BETWEEN $1 AND $2 ${catClause}
        GROUP BY 1 ORDER BY 1`,
       catParams
     ),
@@ -231,7 +236,7 @@ router.get('/traffic', async (req: Request, res: Response) => {
       `SELECT (EXTRACT(ISODOW FROM (checked_in_at - INTERVAL '3 hours'))::int - 1) AS weekday,
               COUNT(*) AS count
        FROM check_ins c JOIN members m ON m.id = c.member_id
-       WHERE ${dateExpr} BETWEEN $1 AND $2 AND m.activo = true ${catClause}
+       WHERE ${dateExpr} BETWEEN $1 AND $2 ${catClause}
        GROUP BY 1 ORDER BY 1`,
       catParams
     ),
@@ -240,7 +245,7 @@ router.get('/traffic', async (req: Request, res: Response) => {
               EXTRACT(HOUR FROM (checked_in_at - INTERVAL '3 hours'))::int AS hour,
               COUNT(*) AS count
        FROM check_ins c JOIN members m ON m.id = c.member_id
-       WHERE ${dateExpr} BETWEEN $1 AND $2 AND m.activo = true ${catClause}
+       WHERE ${dateExpr} BETWEEN $1 AND $2 ${catClause}
        GROUP BY 1, 2 ORDER BY 1, 2`,
       catParams
     ),
@@ -266,9 +271,12 @@ router.get('/members/:id', async (req: Request, res: Response) => {
   const dateExpr = CHECKED_IN_DATE_AR;
 
   const memberRes = await pool.query(
-    `SELECT m.id, m.nombre, m.apellido, m.activo, m.categoria_id,
-            c.nombre AS categoria_nombre
-     FROM members m LEFT JOIN categorias c ON c.id = m.categoria_id
+    `SELECT m.id, m.nombre, m.apellido, m.categoria_id,
+            c.nombre AS categoria_nombre,
+            s.status, s.status_since, s.status_until
+     FROM members m
+     LEFT JOIN categorias c ON c.id = m.categoria_id
+     JOIN member_membership_state s ON s.member_id = m.id
      WHERE m.id = $1`,
     [memberId]
   );
@@ -384,7 +392,8 @@ router.get('/insights', async (req: Request, res: Response) => {
     `SELECT m.nombre, m.apellido, MAX(${dateExpr}) AS last_checkin, COUNT(c.id) AS total_hist
      FROM members m
      LEFT JOIN check_ins c ON c.member_id = m.id
-     WHERE m.activo = true
+     JOIN member_membership_state s ON s.member_id = m.id
+     WHERE s.status = 'ACTIVE'
      GROUP BY m.id, m.nombre, m.apellido
      HAVING MAX(CASE WHEN ${dateExpr} BETWEEN $1 AND $2 THEN 1 ELSE 0 END) = 0
        AND COUNT(c.id) > 0
@@ -407,7 +416,7 @@ router.get('/insights', async (req: Request, res: Response) => {
             EXTRACT(HOUR FROM (checked_in_at - INTERVAL '3 hours'))::int AS hour,
             COUNT(*) AS count
      FROM check_ins c JOIN members m ON m.id = c.member_id
-     WHERE ${dateExpr} BETWEEN $1 AND $2 AND m.activo = true
+     WHERE ${dateExpr} BETWEEN $1 AND $2
      GROUP BY 1, 2 ORDER BY count DESC LIMIT 1`,
     [from, to]
   );
@@ -429,7 +438,9 @@ router.get('/insights', async (req: Request, res: Response) => {
        SELECT 1 FROM check_ins ci JOIN members m ON m.id = ci.member_id
        WHERE m.categoria_id = c.id AND ${dateExpr} BETWEEN $1 AND $2
      )
-     AND EXISTS (SELECT 1 FROM members m2 WHERE m2.categoria_id = c.id AND m2.activo = true)`,
+     AND EXISTS (SELECT 1 FROM members m2
+                 JOIN member_membership_state s2 ON s2.member_id = m2.id
+                 WHERE m2.categoria_id = c.id AND s2.status = 'ACTIVE')`,
     [from, to]
   );
   if (inactiveCats.rows.length > 0) {
