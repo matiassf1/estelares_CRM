@@ -6,13 +6,15 @@
     "dev": "tsx watch src/index.ts",
     "build:frontend": "cd frontend && npm ci && npm run build",
     "build:backend": "tsc",
-    "build": "npm run build:frontend && npm run build:backend && node scripts/copy-frontend.js",
+    "build": "npm run build:frontend && npm run build:backend && node scripts/copy-frontend.js && node scripts/copy-migrations.js",
     "start": "node dist/index.js",
     "seed": "node scripts/seed.js",
     "seed:assoc": "node scripts/seed-association.js",
     "reset:demo": "node scripts/reset-demo.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:int": "vitest run --config vitest.int.config.ts",
+    "test:all": "npm run test && npm run test:int"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

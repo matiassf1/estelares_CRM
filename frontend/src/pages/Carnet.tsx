@@ -5,6 +5,12 @@ import { api } from '../lib/api.ts';
 import ClubShield from '../components/ClubShield.tsx';
 
 interface TodayStatus { ingresado: boolean; hora?: string; }
+
+/** 'YYYY-MM-DD' -> 'dd/mm', sin construir un Date (evita corrimiento de zona). */
+function fmtDia(iso: string): string {
+  const [, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}`;
+}
 interface CarnetData {
   nombre?: string; apellido?: string; dni?: string; patente?: string; foto_url?: string; estacionamiento?: string;
 }
@@ -24,6 +30,8 @@ export default function Carnet({ mock }: Props) {
   });
 
   const data: CarnetData = mock ?? user ?? {};
+  // En modo preview/demo no hay sesión: se muestra siempre el carnet activo.
+  const membership = mock ? null : user?.membership ?? null;
 
   const statusRef = useRef<TodayStatus | null>(status);
   useEffect(() => { statusRef.current = status; }, [status]);
@@ -199,7 +207,43 @@ export default function Carnet({ mock }: Props) {
 
             {/* Status */}
             <div className="animate-slide-up" style={{ animationDelay: '0.46s' }}>
-              {status === null ? (
+              {membership && membership.status !== 'ACTIVE' ? (
+                /* Regla B: el jugador ve su situación administrativa. El botón de
+                   ingreso se muestra deshabilitado con el motivo a la vista, no
+                   oculto: esconderlo genera el reclamo "la app no me anda". */
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    backgroundColor: membership.status === 'SUSPENDED'
+                      ? 'rgba(212,167,44,0.1)' : 'rgba(248,113,113,0.1)',
+                    border: membership.status === 'SUSPENDED'
+                      ? '1px solid rgba(212,167,44,0.3)' : '1px solid rgba(248,113,113,0.3)',
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: membership.status === 'SUSPENDED' ? 'var(--brand-gold)' : '#f87171' }}
+                    />
+                    <p
+                      className="text-xs font-bold tracking-wider"
+                      style={{ color: membership.status === 'SUSPENDED' ? 'var(--brand-gold)' : '#f87171' }}
+                    >
+                      {membership.status === 'SUSPENDED' ? 'MEMBRESÍA SUSPENDIDA' : 'MEMBRESÍA DADA DE BAJA'}
+                    </p>
+                  </div>
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--brand-muted)', lineHeight: 1.5 }}>
+                    {membership.since && `Desde el ${fmtDia(membership.since)}. `}
+                    {membership.status === 'SUSPENDED' && membership.until
+                      ? `Prevista hasta el ${fmtDia(membership.until)}.`
+                      : ''}
+                    {membership.reason ? ` Motivo: ${membership.reason}.` : ''}
+                  </p>
+                  <p className="text-[11px] mt-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    No podés registrar ingresos. Consultá con el club.
+                  </p>
+                </div>
+              ) : status === null ? (
                 <div className="h-12 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--brand-surface-2)' }} />
               ) : status.ingresado ? (
                 <div className="flex items-center gap-3 rounded-xl px-4 py-3"

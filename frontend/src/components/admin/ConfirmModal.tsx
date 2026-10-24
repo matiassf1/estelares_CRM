@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { lockBodyScroll } from '../../utils/scrollLock';
 
 interface ConfirmModalProps {
   title: string;
-  body: string;
+  /** Acepta nodos además de texto para poder mostrar contenido con formato. */
+  body: ReactNode;
   onCancel: () => void;
   onConfirm: () => void;
   onAlternative?: () => void;
@@ -28,7 +29,7 @@ export default function ConfirmModal({
         onClick={e => e.stopPropagation()}
       >
         <h3 className="font-display text-white text-xl tracking-wide mb-2">{title}</h3>
-        <p className="text-sm mb-6" style={{ color: 'var(--brand-muted)', lineHeight: 1.6 }}>{body}</p>
+        <div className="text-sm mb-6 max-h-[50vh] overflow-y-auto" style={{ color: 'var(--brand-muted)', lineHeight: 1.6 }}>{body}</div>
         <div className="flex gap-2">
           <button
             onClick={onCancel}
