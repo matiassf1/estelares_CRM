@@ -6,6 +6,7 @@ import AdminLayout, { type AdminSection } from './admin/AdminLayout';
 import InicioPage from './admin/InicioPage';
 import JugadoresPage, { type MemberFilter } from './admin/JugadoresPage';
 import ClubPage from './admin/ClubPage';
+import ConfigPage from './admin/ConfigPage';
 import Analytics from './Analytics';
 
 export default function Admin() {
@@ -75,11 +76,7 @@ export default function Admin() {
       )}
       {section === 'club' && <ClubPage initialView={clubView} initialCategoriaId={clubCategoriaId} />}
       {section === 'analitica' && <Analytics />}
-      {section === 'config' && (
-        <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-          Configuración — próximamente.
-        </p>
-      )}
+      {section === 'config' && <ConfigPage />}
     </AdminLayout>
   );
 }
