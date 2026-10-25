@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type DashboardData } from '../../lib/api.ts';
 import PendingCard from '../../components/admin/PendingCard';
 import type { AdminSection } from './AdminLayout';
+import type { MemberFilter } from './JugadoresPage';
 
 const TONE_COLOR: Record<'ok' | 'warn' | 'alert', string> = {
   ok: 'var(--brand-ok)',
@@ -15,7 +16,7 @@ function dmy(iso: string | null): string {
   return `${d}/${m}`;
 }
 
-export default function InicioPage({ onSection }: { onSection: (s: AdminSection) => void }) {
+export default function InicioPage({ onSection, onVerJugadores }: { onSection: (s: AdminSection) => void; onVerJugadores: (filtro?: MemberFilter) => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [verTodas, setVerTodas] = useState(false);
@@ -62,7 +63,7 @@ export default function InicioPage({ onSection }: { onSection: (s: AdminSection)
                 title="Se descolgaron"
                 detail={`activos sin venir hace +21 días · ${Math.round((pendientes.descolgados / Math.max(club.activos, 1)) * 100)}% del plantel`}
                 tone="alert"
-                onClick={() => onSection('jugadores')}
+                onClick={() => onVerJugadores()}
               />
             )}
             {pendientes.a_revisar > 0 && (
@@ -70,7 +71,7 @@ export default function InicioPage({ onSection }: { onSection: (s: AdminSection)
                 value={pendientes.a_revisar}
                 title="Membresías a revisar"
                 detail="migradas sin motivo registrado"
-                onClick={() => onSection('jugadores')}
+                onClick={() => onVerJugadores('revision')}
               />
             )}
             {pendientes.sin_foto > 0 && (
@@ -78,7 +79,7 @@ export default function InicioPage({ onSection }: { onSection: (s: AdminSection)
                 value={pendientes.sin_foto}
                 title="Sin foto de carnet"
                 detail="el portero no puede validarlos visualmente"
-                onClick={() => onSection('jugadores')}
+                onClick={() => onVerJugadores('sin_foto')}
               />
             )}
             {pendientes.horarios === 0 && (

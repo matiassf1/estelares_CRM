@@ -35,14 +35,14 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
-type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
+export type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
 
-export default function JugadoresPage({ onIrACocheras }: { onIrACocheras: () => void }) {
+export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrACocheras: () => void; initialFilter?: MemberFilter }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [stats, setStats] = useState({ today: 0, total: 0, activos: 0, suspendidos: 0, bajas: 0 });
   const [search, setSearch] = useState('');
-  const [memberFilter, setMemberFilter] = useState<MemberFilter>('todos');
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>(initialFilter ?? 'todos');
   const [filterCatId, setFilterCatId] = useState<number | null>(null);
   const [editPanel, setEditPanel] = useState<{ member: Member | null } | null>(null);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { api } from '../lib/api';
 import AdminLayout, { type AdminSection } from './admin/AdminLayout';
 import InicioPage from './admin/InicioPage';
-import JugadoresPage from './admin/JugadoresPage';
+import JugadoresPage, { type MemberFilter } from './admin/JugadoresPage';
 import ClubPage from './admin/ClubPage';
 import Analytics from './Analytics';
 
@@ -16,10 +16,17 @@ export default function Admin() {
   // "Asignar cochera" venía de una pestaña propia: tiene que aterrizar en
   // cocheras, no en la vista por defecto de Club.
   const [clubView, setClubView] = useState<'categorias' | 'cocheras'>('categorias');
+  const [jugadoresFilter, setJugadoresFilter] = useState<MemberFilter>('todos');
 
   const irA = (s: AdminSection) => {
     if (s !== 'club') setClubView('categorias');
+    if (s !== 'jugadores') setJugadoresFilter('todos');
     setSection(s);
+  };
+
+  const verJugadores = (filtro?: MemberFilter) => {
+    setJugadoresFilter(filtro ?? 'todos');
+    setSection('jugadores');
   };
 
   useEffect(() => {
@@ -44,9 +51,12 @@ export default function Admin() {
       onLogout={logout}
       flagged={flagged}
     >
-      {section === 'inicio' && <InicioPage onSection={irA} />}
+      {section === 'inicio' && <InicioPage onSection={irA} onVerJugadores={verJugadores} />}
       {section === 'jugadores' && (
-        <JugadoresPage onIrACocheras={() => { setClubView('cocheras'); setSection('club'); }} />
+        <JugadoresPage
+          onIrACocheras={() => { setClubView('cocheras'); setSection('club'); }}
+          initialFilter={jugadoresFilter}
+        />
       )}
       {section === 'club' && <ClubPage initialView={clubView} />}
       {section === 'analitica' && <Analytics />}
