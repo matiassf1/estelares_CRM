@@ -117,7 +117,6 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
   // y el club debe reclasificarlos uno por uno.
   const enRevision = universo.filter(m => m.needs_review).length;
   const sinFoto = universo.filter(m => isActive(m) && !m.foto_url).length;
-  const cocherasLibres = spots.filter(s => !s.member_id).length;
 
   const acotado = filterCatId !== null || search.trim() !== '';
 
@@ -148,9 +147,14 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
         className="sticky top-0 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-2"
         style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
       >
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="font-display text-white text-2xl tracking-widest uppercase">Jugadores</h2>
-          <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+        {/* La barra de navegación ya dice en qué sección estás: repetirlo en un
+            título grande gastaba una línea entera de una pantalla de 418px.
+            Se usa el mismo kicker que el Inicio. */}
+        <div className="flex items-baseline justify-between mb-2">
+          <p className="text-[10px] uppercase tracking-[0.17em]" style={{ color: 'var(--brand-muted)' }}>
+            Padrón
+          </p>
+          <span className="text-[11px]" style={{ color: 'var(--brand-muted)' }}>
             {stats.activos} activos · {stats.today} hoy
           </span>
         </div>
@@ -169,39 +173,19 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
           </button>
         </div>
 
-        {/* Metric cards */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 mt-3 md:grid md:grid-cols-5 scrollbar-none">
-          {[
-            { label: 'Ingresos hoy', value: stats.today, color: '#3FB56B', filter: 'hoy' as MemberFilter },
-            { label: 'Activos', value: stats.activos, color: 'white', filter: 'todos' as MemberFilter },
-            { label: 'Suspendidos', value: stats.suspendidos, color: 'var(--brand-gold)', filter: 'suspendidos' as MemberFilter },
-            { label: 'Bajas', value: stats.bajas, color: '#f87171', filter: 'bajas' as MemberFilter },
-            { label: 'Cocheras libres', value: cocherasLibres, color: 'white', filter: 'todos' as MemberFilter },
-          ].map(card => (
-            <button
-              key={card.label}
-              onClick={() => setMemberFilter(memberFilter === card.filter && card.filter !== 'todos' ? 'todos' : card.filter)}
-              className="flex-shrink-0 flex-1 min-w-[120px] rounded-xl p-3 text-left transition-all active:scale-95"
-              style={{
-                backgroundColor: 'var(--brand-surface)',
-                border: memberFilter === card.filter && card.filter !== 'todos'
-                  ? '1px solid rgb(var(--brand-primary-rgb) / 0.5)'
-                  : '1px solid rgb(var(--brand-accent-rgb) / 0.12)',
-              }}
-            >
-              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-muted)' }}>{card.label}</p>
-              <p className="font-display text-2xl" style={{ color: card.color, lineHeight: 1 }}>{card.value}</p>
-            </button>
-          ))}
-        </div>
+        {/* Las tarjetas de métricas se quitaron: decían lo mismo que los chips
+            —ACTIVOS 98 contra "Todos 108", SUSPENDIDOS 10 contra
+            "Suspendidos 10"— y entre ambas ocupaban media pantalla antes del
+            primer jugador. El pulso del club vive en el Inicio.
 
-        {/* Filter chips */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 mt-2 -mx-5 px-5 md:mx-0 md:px-0 scrollbar-none">
+            Los chips envuelven en lugar de desplazarse: desplazándose quedaban
+            cortados contra el borde y no se veía que hubiera más. */}
+        <div className="flex gap-1.5 flex-wrap mt-2.5">
           {(['todos', 'hoy', 'suspendidos', 'bajas', ...(enRevision > 0 ? ['revision' as const] : []), 'sin_foto'] as MemberFilter[]).map(chip => (
             <button
               key={chip}
               onClick={() => setMemberFilter(chip)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
               style={memberFilter === chip
                 ? { backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }
                 : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
