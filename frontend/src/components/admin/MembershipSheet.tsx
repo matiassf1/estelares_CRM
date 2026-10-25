@@ -7,10 +7,26 @@ import { shortDate } from './MembershipBadge';
 export type MembershipOp = 'suspend' | 'terminate' | 'reactivate';
 
 interface Props {
-  member: Member;
+  /**
+   * Uno o varios jugadores. El formulario es el mismo en ambos casos —misma
+   * fecha, mismos motivos rápidos, misma confirmación de baja—: duplicarlo en
+   * un componente "bulk" habría dejado dos copias de la misma validación.
+   * Con un solo jugador se usan los endpoints individuales, que ya devuelven
+   * el estado resultante; con varios, los de lote, que son atómicos.
+   */
+  members: Member[];
   op: MembershipOp;
   onClose: () => void;
   onDone: (message: string) => void;
+}
+
+const fullName = (m: Member) => `${m.apellido}, ${m.nombre}`;
+
+/** Nombres completos si son pocos; si no, los primeros y un "y N más". */
+function describeMembers(members: Member[], max = 4): string {
+  if (members.length <= max) return members.map(fullName).join(' · ');
+  const head = members.slice(0, max).map(fullName).join(' · ');
+  return `${head} y ${members.length - max} más`;
 }
 
 /** Motivos frecuentes: evitan tipear en el celular, el campo libre sigue disponible. */
@@ -33,7 +49,7 @@ function todayIso(): string {
   ).padStart(2, '0')}`;
 }
 
-export default function MembershipSheet({ member, op, onClose, onDone }: Props) {
+export default function MembershipSheet({ members, op, onClose, onDone }: Props) {
   const [visible, setVisible] = useState(false);
   const [from, setFrom] = useState(todayIso());
   const [until, setUntil] = useState('');
@@ -45,6 +61,7 @@ export default function MembershipSheet({ member, op, onClose, onDone }: Props) 
 
   const copy = COPY[op];
   const reasonRequired = op !== 'reactivate';
+  const single = members.length === 1;
 
   useEffect(() => {
     const unlock = lockBodyScroll();
@@ -73,23 +90,57 @@ export default function MembershipSheet({ member, op, onClose, onDone }: Props) 
     }
     setLoading(true);
     try {
-      const nombre = `${member.apellido}, ${member.nombre}`;
-      if (op === 'suspend') {
-        await api.suspendMember(member.id, {
-          effective_from: from,
-          effective_until: hasUntil && until ? until : null,
-          reason: reason.trim(),
-        });
-        onDone(`${nombre} suspendido desde el ${shortDate(from)}`);
-      } else if (op === 'terminate') {
-        await api.terminateMember(member.id, { effective_from: from, reason: reason.trim() });
-        onDone(`${nombre} dado de baja`);
+      if (single) {
+        const member = members[0];
+        const nombre = fullName(member);
+        if (op === 'suspend') {
+          await api.suspendMember(member.id, {
+            effective_from: from,
+            effective_until: hasUntil && until ? until : null,
+            reason: reason.trim(),
+          });
+          onDone(`${nombre} suspendido desde el ${shortDate(from)}`);
+        } else if (op === 'terminate') {
+          await api.terminateMember(member.id, { effective_from: from, reason: reason.trim() });
+          onDone(`${nombre} dado de baja`);
+        } else {
+          await api.reactivateMember(member.id, {
+            effective_from: from,
+            reason: reason.trim() || undefined,
+          });
+          onDone(`${nombre} reactivado`);
+        }
       } else {
-        await api.reactivateMember(member.id, {
-          effective_from: from,
-          reason: reason.trim() || undefined,
-        });
-        onDone(`${nombre} reactivado`);
+        const member_ids = members.map(m => m.id);
+        if (op === 'suspend') {
+          const r = await api.bulkSuspendMembers({
+            member_ids,
+            effective_from: from,
+            effective_until: hasUntil && until ? until : null,
+            reason: reason.trim(),
+          });
+          onDone(`${r.applied} jugadores suspendidos desde el ${shortDate(from)}`);
+        } else if (op === 'terminate') {
+          const r = await api.bulkTerminateMembers({
+            member_ids,
+            effective_from: from,
+            reason: reason.trim(),
+          });
+          onDone(`${r.applied} jugadores dados de baja`);
+        } else {
+          const r = await api.bulkReactivateMembers({
+            member_ids,
+            effective_from: from,
+            reason: reason.trim() || undefined,
+          });
+          // Reactivar a alguien ya activo es no-op: `applied` puede ser menor
+          // que la selección, y decirlo evita que el admin crea que falló.
+          onDone(
+            r.applied === members.length
+              ? `${r.applied} jugadores reactivados`
+              : `${r.applied} de ${members.length} jugadores reactivados (el resto ya estaba activo)`
+          );
+        }
       }
       close();
     } catch (err) {
@@ -132,21 +183,51 @@ export default function MembershipSheet({ member, op, onClose, onDone }: Props) 
 
         <div className="px-5 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
           <p className="font-semibold text-white text-base">{copy.title}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
-            {member.apellido}, {member.nombre}
-          </p>
+          {single ? (
+            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+              {fullName(members[0])}
+            </p>
+          ) : (
+            <>
+              <p className="text-xs mt-0.5 font-display tracking-wide" style={{ color: 'var(--brand-gold)' }}>
+                {members.length} jugadores seleccionados
+              </p>
+              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--brand-muted)' }}>
+                {describeMembers(members)}
+              </p>
+            </>
+          )}
         </div>
 
         {confirming ? (
           /* Confirmación de baja: se enuncian las consecuencias reales, incluido
              lo que NO pasa, que es lo que más tranquiliza al administrador. */
           <div className="px-5 py-4 space-y-3">
-            <p className="text-sm text-white">¿Confirmás la baja?</p>
+            <p className="text-sm text-white">
+              {single ? '¿Confirmás la baja?' : `¿Confirmás la baja de ${members.length} jugadores?`}
+            </p>
+            {!single && (
+              <p className="text-[11px] leading-snug" style={{ color: 'var(--brand-muted)' }}>
+                {describeMembers(members, 8)}
+              </p>
+            )}
             <ul className="text-xs space-y-1.5" style={{ color: 'var(--brand-muted)' }}>
-              <li>· No podrá ingresar al club.</li>
-              <li>· Se liberará su cochera, si tiene una asignada.</li>
-              <li>· Su historial de ingresos y sus datos se conservan.</li>
-              <li>· Podés reactivarlo cuando vuelva, sin perder antigüedad.</li>
+              {single ? (
+                <>
+                  <li>· No podrá ingresar al club.</li>
+                  <li>· Se liberará su cochera, si tiene una asignada.</li>
+                  <li>· Su historial de ingresos y sus datos se conservan.</li>
+                  <li>· Podés reactivarlo cuando vuelva, sin perder antigüedad.</li>
+                </>
+              ) : (
+                <>
+                  <li>· Ninguno podrá ingresar al club.</li>
+                  <li>· Se liberarán sus cocheras, si tienen una asignada.</li>
+                  <li>· Sus historiales de ingresos y sus datos se conservan.</li>
+                  <li>· Podés reactivarlos cuando vuelvan, sin perder antigüedad.</li>
+                  <li>· Se aplica a todos o a ninguno.</li>
+                </>
+              )}
             </ul>
           </div>
         ) : (

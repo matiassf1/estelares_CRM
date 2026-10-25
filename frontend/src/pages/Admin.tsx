@@ -6,6 +6,7 @@ import AdminLayout, { type AdminSection } from './admin/AdminLayout';
 import InicioPage from './admin/InicioPage';
 import JugadoresPage, { type MemberFilter } from './admin/JugadoresPage';
 import ClubPage from './admin/ClubPage';
+import ConfigPage from './admin/ConfigPage';
 import Analytics from './Analytics';
 
 export default function Admin() {
@@ -15,7 +16,7 @@ export default function Admin() {
   const [flagged, setFlagged] = useState<AdminSection[]>([]);
   // "Asignar cochera" venía de una pestaña propia: tiene que aterrizar en
   // cocheras, no en la vista por defecto de Club.
-  const [clubView, setClubView] = useState<'categorias' | 'cocheras'>('categorias');
+  const [clubView, setClubView] = useState<'categorias' | 'horarios' | 'cocheras'>('categorias');
   const [jugadoresFilter, setJugadoresFilter] = useState<MemberFilter>('todos');
   const [clubCategoriaId, setClubCategoriaId] = useState<number | null>(null);
 
@@ -33,6 +34,12 @@ export default function Admin() {
   const verCategoria = (id: number) => {
     setClubView('categorias');
     setClubCategoriaId(id);
+    setSection('club');
+  };
+
+  const verHorarios = () => {
+    setClubView('horarios');
+    setClubCategoriaId(null);
     setSection('club');
   };
 
@@ -58,7 +65,9 @@ export default function Admin() {
       onLogout={logout}
       flagged={flagged}
     >
-      {section === 'inicio' && <InicioPage onSection={irA} onVerJugadores={verJugadores} onVerCategoria={verCategoria} />}
+      {section === 'inicio' && (
+        <InicioPage onVerJugadores={verJugadores} onVerCategoria={verCategoria} onVerHorarios={verHorarios} />
+      )}
       {section === 'jugadores' && (
         <JugadoresPage
           onIrACocheras={() => { setClubView('cocheras'); setClubCategoriaId(null); setSection('club'); }}
@@ -67,11 +76,7 @@ export default function Admin() {
       )}
       {section === 'club' && <ClubPage initialView={clubView} initialCategoriaId={clubCategoriaId} />}
       {section === 'analitica' && <Analytics />}
-      {section === 'config' && (
-        <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-          Configuración — próximamente.
-        </p>
-      )}
+      {section === 'config' && <ConfigPage />}
     </AdminLayout>
   );
 }

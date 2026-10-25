@@ -7,9 +7,10 @@ const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábad
 interface Props {
   categoriaId: number;
   categoriaNombre: string;
+  onChange?: () => void;
 }
 
-export default function ScheduleConfig({ categoriaId, categoriaNombre }: Props) {
+export default function ScheduleConfig({ categoriaId, categoriaNombre, onChange }: Props) {
   const [schedules, setSchedules] = useState<TrainingSchedule[]>([]);
   const [form, setForm] = useState({ day_of_week: 0, start_time: '21:00', tolerance_min: 15 });
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,7 @@ export default function ScheduleConfig({ categoriaId, categoriaNombre }: Props) 
         valid_until: null,
       });
       load();
+      onChange?.();
     } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   };
@@ -43,6 +45,7 @@ export default function ScheduleConfig({ categoriaId, categoriaNombre }: Props) 
     try {
       await api.deleteTrainingSchedule(id);
       setSchedules(prev => prev.filter(s => s.id !== id));
+      onChange?.();
     } catch (e) {
       setError((e as Error).message);
     }

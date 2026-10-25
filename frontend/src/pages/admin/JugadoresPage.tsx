@@ -37,6 +37,33 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
 
 export type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
 
+/**
+ * Casilla de selección. En mobile la tarjeta entera abre el menú de acciones,
+ * así que la casilla tiene su propia área de toque de 36px y detiene la
+ * propagación: tocar la casilla selecciona, tocar el resto de la tarjeta sigue
+ * abriendo el menú de ese jugador. Las dos intenciones conviven sin modo.
+ */
+function SelectBox({ checked, onToggle, label }: { checked: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={checked}
+      onClick={e => { e.stopPropagation(); onToggle(); }}
+      className="flex-shrink-0 w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
+    >
+      <span
+        className="w-[18px] h-[18px] rounded-[5px] flex items-center justify-center text-[11px] font-bold"
+        style={checked
+          ? { backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }
+          : { border: '1px solid rgb(var(--brand-accent-rgb) / 0.35)', color: 'transparent' }}
+      >
+        ✓
+      </span>
+    </button>
+  );
+}
+
 export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrACocheras: () => void; initialFilter?: MemberFilter }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -48,7 +75,8 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
 
   const [sheetMember, setSheetMember] = useState<Member | null>(null);
-  const [membershipSheet, setMembershipSheet] = useState<{ member: Member; op: MembershipOp } | null>(null);
+  const [membershipSheet, setMembershipSheet] = useState<{ members: Member[]; op: MembershipOp } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [historyMember, setHistoryMember] = useState<Member | null>(null);
   const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
@@ -75,7 +103,7 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
    */
   const playerActionItems = (m: Member) => {
     const status = m.status || 'ACTIVE';
-    const openOp = (op: MembershipOp) => () => setMembershipSheet({ member: m, op });
+    const openOp = (op: MembershipOp) => () => setMembershipSheet({ members: [m], op });
     const verHistorial = { label: 'Ver historial', onClick: () => setHistoryMember(m) };
 
     if (status === 'TERMINATED') {
@@ -140,6 +168,27 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
       // 'hoy': member list lacks per-member check-in date; card shows stats.today count only
       return true;
     });
+
+  // Al cambiar de filtro, de categoría o de búsqueda la selección se descarta:
+  // mantenerla significaría aplicar una acción masiva sobre jugadores que ya no
+  // están en pantalla, que es la forma más fácil de que esto haga daño.
+  useEffect(() => { setSelected(new Set()); }, [memberFilter, filterCatId, search]);
+
+  const toggleOne = (id: string) =>
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  // La cabecera actúa sólo sobre lo visible (`filtered`), nunca sobre el padrón.
+  const allVisibleSelected = filtered.length > 0 && filtered.every(m => selected.has(m.id));
+  const toggleAllVisible = () =>
+    setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(m => m.id)));
+
+  const selectedMembers = filtered.filter(m => selected.has(m.id));
+  const openBulk = (op: MembershipOp) => setMembershipSheet({ members: selectedMembers, op });
+  const clearSelection = () => setSelected(new Set());
 
   return (
     <>
@@ -218,6 +267,13 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-muted)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.1)' }}>
+                  <th className="py-2 w-9">
+                    <SelectBox
+                      checked={allVisibleSelected}
+                      onToggle={toggleAllVisible}
+                      label={allVisibleSelected ? 'Deseleccionar todos los visibles' : 'Seleccionar todos los visibles'}
+                    />
+                  </th>
                   <th className="text-left py-2 font-semibold">Jugador</th>
                   <th className="text-left py-2 font-semibold">Categoría</th>
                   <th className="text-left py-2 font-semibold">Cochera</th>
@@ -236,6 +292,13 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
                       className="transition-colors hover:bg-white/[0.02]"
                       style={{ borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.06)', opacity: isActive(m) ? 1 : 0.55 }}
                     >
+                      <td className="py-3 w-9">
+                        <SelectBox
+                          checked={selected.has(m.id)}
+                          onToggle={() => toggleOne(m.id)}
+                          label={`Seleccionar ${formatPlayerName(m.apellido, m.nombre)}`}
+                        />
+                      </td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-3">
                           <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} />
@@ -273,15 +336,22 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
         {/* Mobile cards */}
         <div className="md:hidden">
         {filtered.map((m) => (
-          <div key={m.id} className="rounded-xl px-4 py-3 mb-2 transition-all cursor-pointer md:cursor-default"
+          <div key={m.id} className="rounded-xl px-3 py-3 mb-2 transition-all cursor-pointer md:cursor-default"
             onClick={() => { if (window.innerWidth < 768) setSheetMember(m); }}
             style={{
               backgroundColor: 'var(--brand-surface)',
-              border: isActive(m) ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
-              opacity: isActive(m) ? 1 : 0.55,
+              border: selected.has(m.id)
+                ? '1px solid var(--brand-primary)'
+                : isActive(m) ? '1px solid rgb(var(--brand-accent-rgb) / 0.2)' : '1px solid rgb(var(--brand-border-rgb) / 0.5)',
+              opacity: isActive(m) || selected.has(m.id) ? 1 : 0.55,
             }}>
-            <div className="flex justify-between items-center gap-3">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="flex justify-between items-center gap-2">
+              <SelectBox
+                checked={selected.has(m.id)}
+                onToggle={() => toggleOne(m.id)}
+                label={`Seleccionar ${formatPlayerName(m.apellido, m.nombre)}`}
+              />
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} square />
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-sm truncate">
@@ -321,6 +391,59 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
         </div>
       </div>
 
+      {/* Barra de acciones masivas. Sólo existe si hay selección.
+          En mobile se apoya sobre la navegación inferior `fixed` de AdminLayout
+          (≈60px + safe-area) en lugar de sobre el borde de la pantalla: pegada
+          a bottom-0 quedaría tapada por ella. En escritorio no hay esa barra y
+          va a bottom-0. z-40 la deja sobre el contenido y por debajo de los
+          modales, que usan z-[70] en adelante. */}
+      {selected.size > 0 && (
+        <div
+          className="sticky z-40 mt-3 rounded-xl p-3 bottom-[calc(3.9rem_+_env(safe-area-inset-bottom,0px))] md:bottom-3"
+          style={{
+            backgroundColor: 'var(--brand-surface)',
+            border: '1px solid rgb(var(--brand-border-rgb) / 0.9)',
+            boxShadow: '0 -6px 24px rgba(0,0,0,0.45)',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-display tracking-wide text-sm text-white">
+              {selected.size} seleccionado{selected.size !== 1 ? 's' : ''}
+            </p>
+            <button
+              onClick={clearSelection}
+              className="text-[11px] px-2.5 py-1 rounded-lg active:opacity-60"
+              style={{ color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-border-rgb) / 0.8)' }}
+            >
+              Limpiar
+            </button>
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => openBulk('reactivate')}
+              className="flex-1 font-display tracking-wide text-xs py-2.5 rounded-xl active:scale-95 transition-all"
+              style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
+            >
+              Reactivar
+            </button>
+            <button
+              onClick={() => openBulk('suspend')}
+              className="flex-1 font-display tracking-wide text-xs py-2.5 rounded-xl active:scale-95 transition-all"
+              style={{ backgroundColor: 'rgba(212,167,44,0.12)', color: 'var(--brand-gold)', border: '1px solid rgba(212,167,44,0.4)' }}
+            >
+              Suspender
+            </button>
+            <button
+              onClick={() => openBulk('terminate')}
+              className="flex-1 font-display tracking-wide text-xs py-2.5 rounded-xl active:scale-95 transition-all"
+              style={{ backgroundColor: 'rgba(248,113,113,0.1)', color: 'var(--brand-danger)', border: '1px solid rgba(248,113,113,0.4)' }}
+            >
+              Dar de baja
+            </button>
+          </div>
+        </div>
+      )}
+
       {filtered.length > 0 && (
         <p className="text-center text-xs mt-6 tracking-widest uppercase"
           style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
@@ -338,10 +461,10 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
       )}
       {membershipSheet && (
         <MembershipSheet
-          member={membershipSheet.member}
+          members={membershipSheet.members}
           op={membershipSheet.op}
           onClose={() => setMembershipSheet(null)}
-          onDone={message => { setToast({ message }); load(); }}
+          onDone={message => { setToast({ message }); clearSelection(); load(); }}
         />
       )}
       {historyMember && (

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type DashboardData } from '../../lib/api.ts';
 import PendingCard from '../../components/admin/PendingCard';
-import type { AdminSection } from './AdminLayout';
 import type { MemberFilter } from './JugadoresPage';
 
 const TONE_COLOR: Record<'ok' | 'warn' | 'alert', string> = {
@@ -17,13 +16,14 @@ function dmy(iso: string | null): string {
 }
 
 interface Props {
-  onSection: (s: AdminSection) => void;
   onVerJugadores: (filtro?: MemberFilter) => void;
   /** Abre Club directamente en la categoría elegida. */
   onVerCategoria: (id: number) => void;
+  /** Abre Club directamente en la sub-vista de horarios. */
+  onVerHorarios: () => void;
 }
 
-export default function InicioPage({ onSection, onVerJugadores, onVerCategoria }: Props) {
+export default function InicioPage({ onVerJugadores, onVerCategoria, onVerHorarios }: Props) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [verTodas, setVerTodas] = useState(false);
@@ -94,7 +94,7 @@ export default function InicioPage({ onSection, onVerJugadores, onVerCategoria }
                 value={0}
                 title="Horarios cargados"
                 detail="Sin esto no hay control de asistencia"
-                onClick={() => onSection('club')}
+                onClick={onVerHorarios}
               />
             )}
           </div>

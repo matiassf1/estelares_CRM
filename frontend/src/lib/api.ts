@@ -49,6 +49,22 @@ export interface Member {
   categoria_nombre?: string | null;
 }
 
+export type AdminUserRole = 'admin' | 'portero';
+
+/** Usuario del panel. Sin `password_hash`: el backend no lo devuelve nunca. */
+export interface AdminUser {
+  id: string;
+  username: string;
+  role: AdminUserRole;
+  created_at: string;
+}
+
+/** Resultado de una acción masiva. `member_ids` son los efectivamente aplicados. */
+export interface BulkResult {
+  applied: number;
+  member_ids: string[];
+}
+
 export interface MembershipState {
   member_id: string;
   status: MembershipStatus;
@@ -263,6 +279,48 @@ export const api = {
       `/admin/members/${id}/reactivate`,
       { method: 'POST', body: JSON.stringify(data) }
     ),
+
+  // ── Usuarios del panel ──────────────────────────────────────────────────────
+  // El backend nunca devuelve password_hash; `AdminUser` no lo contempla.
+  getAdminUsers: () => request<AdminUser[]>('/admin/users'),
+
+  createAdminUser: (data: { username: string; password: string; role: AdminUserRole }) =>
+    request<AdminUser>('/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateAdminUserPassword: (id: string, password: string) =>
+    request<AdminUser>(`/admin/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+
+  deleteAdminUser: (id: string) =>
+    request<{ ok: boolean }>(`/admin/users/${id}`, { method: 'DELETE' }),
+
+  // ── Acciones masivas ────────────────────────────────────────────────────────
+  // El lote es atómico: el 409 llega con el mensaje del backend ya nombrando a
+  // los jugadores en conflicto, y `request` lo propaga tal cual en el Error.
+  bulkSuspendMembers: (data: {
+    member_ids: string[];
+    effective_from?: string;
+    effective_until?: string | null;
+    reason: string;
+  }) =>
+    request<BulkResult>('/admin/members/bulk/suspend', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  bulkTerminateMembers: (data: { member_ids: string[]; effective_from?: string; reason: string }) =>
+    request<BulkResult>('/admin/members/bulk/terminate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  bulkReactivateMembers: (data: { member_ids: string[]; effective_from?: string; reason?: string }) =>
+    request<BulkResult>('/admin/members/bulk/reactivate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   getMembership: (id: string) =>
     request<MembershipState>(`/admin/members/${id}/membership`),
