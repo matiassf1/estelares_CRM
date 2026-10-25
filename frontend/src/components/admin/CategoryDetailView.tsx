@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Categoria, Member, CategoryAnalytics, api } from '../../lib/api';
-import { formatDni, formatPlayerName, getInitials } from '../../utils/format';
+import { formatDni, formatPlayerName } from '../../utils/format';
 import { formatLastSeen } from '../../utils/time';
+import PlayerAvatar from './PlayerAvatar';
 import ActionMenu from './ActionMenu';
 import MembershipBadge, { STATUS_LABEL } from './MembershipBadge';
 import MiniBar from '../analytics/MiniBar';
@@ -17,13 +18,6 @@ function getRange() {
   const from = new Date(to);
   from.setDate(from.getDate() - 29);
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
-
-function avatarColor(name: string): string {
-  const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
 }
 
 interface Props {
@@ -189,8 +183,6 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                   </thead>
                   <tbody>
                     {catMembers.map(m => {
-                      const initials = getInitials(m.apellido, m.nombre);
-                      const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
                       return (
                         <tr
                           key={m.id}
@@ -200,12 +192,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                         >
                           <td className="py-3 pr-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                                style={{ backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor }}>
-                                {m.foto_url
-                                  ? <img src={m.foto_url} alt="" className="w-full h-full object-cover" />
-                                  : initials}
-                              </div>
+                              <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} />
                               <p className="font-semibold text-white">{formatPlayerName(m.apellido, m.nombre)}</p>
                             </div>
                           </td>
@@ -233,8 +220,6 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
             {catMembers.length > 0 && (
               <div className="md:hidden space-y-2">
                 {catMembers.map(m => {
-                  const initials = getInitials(m.apellido, m.nombre);
-                  const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
                   return (
                     <div
                       key={m.id}
@@ -246,12 +231,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
                         opacity: (m.status || 'ACTIVE') === 'ACTIVE' ? 1 : 0.55,
                       }}
                     >
-                      <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                        style={{ backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor }}>
-                        {m.foto_url
-                          ? <img src={m.foto_url} alt="" className="w-full h-full object-cover" />
-                          : initials}
-                      </div>
+                      <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={40} />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-white text-sm truncate">{formatPlayerName(m.apellido, m.nombre)}</p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>

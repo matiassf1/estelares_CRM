@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, Member, ParkingSpot, Categoria } from '../../lib/api.ts';
-import { formatDni, formatPlayerName, getInitials } from '../../utils/format';
+import { formatDni, formatPlayerName } from '../../utils/format';
+import PlayerAvatar from '../../components/admin/PlayerAvatar';
 import ActionMenu from '../../components/admin/ActionMenu';
 import BottomSheet from '../../components/admin/BottomSheet';
 import Toast from '../../components/admin/Toast';
@@ -32,13 +33,6 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
     </svg>
   );
   return null;
-}
-
-function avatarColor(name: string): string {
-  const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
 }
 
 type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
@@ -241,7 +235,6 @@ export default function JugadoresPage({ onIrACocheras }: { onIrACocheras: () => 
                   const cat = categorias.find(c => c.id === m.categoria_id);
                   const catColor = cat?.color || '#E5484D';
                   const spot = spots.find(s => s.member_id === m.id);
-                  const initials = getInitials(m.apellido, m.nombre);
                   return (
                     <tr
                       key={m.id}
@@ -250,10 +243,7 @@ export default function JugadoresPage({ onIrACocheras }: { onIrACocheras: () => 
                     >
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                            style={{ backgroundColor: avatarColor(`${m.apellido}${m.nombre}`) }}>
-                            {m.foto_url ? <img src={m.foto_url} alt="" className="w-full h-full object-cover rounded-full" /> : initials}
-                          </div>
+                          <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} />
                           <div>
                             <p className="font-semibold text-white">{formatPlayerName(m.apellido, m.nombre)}</p>
                             <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>DNI {formatDni(m.dni)}</p>
@@ -297,19 +287,7 @@ export default function JugadoresPage({ onIrACocheras }: { onIrACocheras: () => 
             }}>
             <div className="flex justify-between items-center gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
-                  style={{
-                    backgroundColor: m.foto_url ? 'var(--brand-bg)' : avatarColor(`${m.apellido}${m.nombre}`),
-                    border: '1px solid rgb(var(--brand-accent-rgb) / 0.15)',
-                  }}
-                >
-                  {m.foto_url ? (
-                    <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold text-white">{getInitials(m.apellido, m.nombre)}</span>
-                  )}
-                </div>
+                <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} square />
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-sm truncate">
                     {formatPlayerName(m.apellido, m.nombre)}

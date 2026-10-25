@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, Member, ParkingSpot, Categoria } from '../../lib/api.ts';
-import { getInitials } from '../../utils/format';
+import PlayerAvatar from '../../components/admin/PlayerAvatar';
 import ActionMenu from '../../components/admin/ActionMenu';
 import ConfirmModal from '../../components/admin/ConfirmModal';
 import PlayerEditPanel from '../../components/admin/PlayerEditPanel';
 import CategoryDrawer from '../../components/admin/CategoryDrawer';
 import CategoryDetailView from '../../components/admin/CategoryDetailView';
-
-function avatarColor(name: string): string {
-  const colors = ['#c0392b','#8e44ad','#2980b9','#16a085','#d35400','#27ae60','#2c3e50'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
 
 type ClubView = 'categorias' | 'cocheras';
 
@@ -182,21 +175,12 @@ export default function ClubPage() {
                           ) : (
                             <div className="flex items-center gap-2">
                               {preview.map(m => {
-                                const bgColor = avatarColor(`${m.apellido}${m.nombre}`);
                                 return (
                                   <div
                                     key={m.id}
-                                    className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
-                                    style={{
-                                      backgroundColor: m.foto_url ? 'var(--brand-bg)' : bgColor,
-                                      border: '2px solid rgb(var(--brand-accent-rgb) / 0.15)',
-                                      opacity: (m.status || "ACTIVE") === "ACTIVE" ? 1 : 0.4,
-                                    }}
+                                    style={{ opacity: (m.status || "ACTIVE") === "ACTIVE" ? 1 : 0.4 }}
                                   >
-                                    {m.foto_url
-                                      ? <img src={m.foto_url} alt={m.nombre} className="w-full h-full object-cover" />
-                                      : <span className="text-xs font-bold text-white">{getInitials(m.apellido, m.nombre)}</span>
-                                    }
+                                    <PlayerAvatar nombre={m.nombre} apellido={m.apellido} fotoUrl={m.foto_url} size={36} />
                                   </div>
                                 );
                               })}
