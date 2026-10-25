@@ -13,6 +13,14 @@ export default function Admin() {
   const navigate = useNavigate();
   const [section, setSection] = useState<AdminSection>('inicio');
   const [flagged, setFlagged] = useState<AdminSection[]>([]);
+  // "Asignar cochera" venía de una pestaña propia: tiene que aterrizar en
+  // cocheras, no en la vista por defecto de Club.
+  const [clubView, setClubView] = useState<'categorias' | 'cocheras'>('categorias');
+
+  const irA = (s: AdminSection) => {
+    if (s !== 'club') setClubView('categorias');
+    setSection(s);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -31,14 +39,16 @@ export default function Admin() {
   return (
     <AdminLayout
       section={section}
-      onSection={setSection}
+      onSection={irA}
       onPortero={() => navigate('/portero')}
       onLogout={logout}
       flagged={flagged}
     >
-      {section === 'inicio' && <InicioPage onSection={setSection} />}
-      {section === 'jugadores' && <JugadoresPage onIrACocheras={() => setSection('club')} />}
-      {section === 'club' && <ClubPage />}
+      {section === 'inicio' && <InicioPage onSection={irA} />}
+      {section === 'jugadores' && (
+        <JugadoresPage onIrACocheras={() => { setClubView('cocheras'); setSection('club'); }} />
+      )}
+      {section === 'club' && <ClubPage initialView={clubView} />}
       {section === 'analitica' && <Analytics />}
       {section === 'config' && (
         <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>

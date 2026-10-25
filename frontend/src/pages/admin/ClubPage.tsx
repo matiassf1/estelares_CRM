@@ -14,8 +14,13 @@ const VIEWS: { id: ClubView; label: string }[] = [
   { id: 'cocheras', label: 'Cocheras' },
 ];
 
-export default function ClubPage() {
-  const [view, setView] = useState<ClubView>('categorias');
+interface Props {
+  /** Sub-vista inicial. "Asignar cochera" desde Jugadores entra directo en cocheras. */
+  initialView?: ClubView;
+}
+
+export default function ClubPage({ initialView = 'categorias' }: Props) {
+  const [view, setView] = useState<ClubView>(initialView);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
