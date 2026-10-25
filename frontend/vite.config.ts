@@ -10,6 +10,8 @@ export default defineConfig({
       includeAssets: ['shield.png', 'shield.jpg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,jpg,png,svg,woff2}'],
+        // Sin esto quedan conviviendo los precaches de versiones anteriores.
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^\/api\/auth\/me/,
@@ -35,8 +37,9 @@ export default defineConfig({
         name: 'Estelares Futsal',
         short_name: 'Estelares',
         description: 'Control de acceso — Estelares Futsal',
-        theme_color: '#CC2222',
-        background_color: '#0D0D0D',
+        // Paleta del tema único: el rojo era del tema `clasico`, ya eliminado.
+        theme_color: '#000000',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
