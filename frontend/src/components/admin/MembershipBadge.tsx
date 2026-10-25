@@ -22,7 +22,7 @@ export function shortDate(iso?: string | null): string {
 /** Línea de contexto: desde cuándo rige el estado y hasta cuándo, si se sabe. */
 export function statusDetail(m: Pick<Member, 'status' | 'status_since' | 'status_until'>): string {
   if (m.status === 'ACTIVE') return '';
-  const desde = m.status_since ? `desde ${shortDate(m.status_since)}` : '';
+  const desde = m.status_since ? `Desde ${shortDate(m.status_since)}` : '';
   if (m.status === 'SUSPENDED' && m.status_until) {
     return `${desde} · vuelve ${shortDate(m.status_until)}`;
   }
