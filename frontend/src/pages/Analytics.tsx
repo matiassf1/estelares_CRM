@@ -458,15 +458,17 @@ export default function Analytics() {
     : 'Club → Jugador';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--brand-bg)' }}>
-      <div className="max-w-4xl mx-auto px-5 pt-6 pb-10">
-        <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-accent)' }}>
-              {breadcrumb}
-            </p>
-            <h1 className="font-display text-white text-3xl tracking-widest">ANALÍTICA</h1>
-          </div>
+    <>
+      {/* Esta pantalla vive dentro del panel, que ya tiene su propio contenedor
+          y su navegación: el título "ANALÍTICA" de 3xl y el breadcrumb "CLUB"
+          repetían lo que la barra inferior ya indica, y en 418px costaban dos
+          líneas. Queda el mismo kicker del Inicio, y el breadcrumb sólo cuando
+          de verdad hay un nivel al que volver. */}
+      <div className="max-w-4xl mx-auto pb-10">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+          <p className="text-[10px] uppercase tracking-[0.17em] pt-1" style={{ color: 'var(--brand-muted)' }}>
+            {view.type === 'overview' ? 'Asistencia' : breadcrumb}
+          </p>
           <PeriodFilter range={range} onChange={setRange} />
         </div>
 
@@ -480,6 +482,6 @@ export default function Analytics() {
           <MemberPanel memberId={view.id} range={range} onBack={handleBack} />
         )}
       </div>
-    </div>
+    </>
   );
 }

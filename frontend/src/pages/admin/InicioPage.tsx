@@ -16,7 +16,14 @@ function dmy(iso: string | null): string {
   return `${d}/${m}`;
 }
 
-export default function InicioPage({ onSection, onVerJugadores }: { onSection: (s: AdminSection) => void; onVerJugadores: (filtro?: MemberFilter) => void }) {
+interface Props {
+  onSection: (s: AdminSection) => void;
+  onVerJugadores: (filtro?: MemberFilter) => void;
+  /** Abre Club directamente en la categoría elegida. */
+  onVerCategoria: (id: number) => void;
+}
+
+export default function InicioPage({ onSection, onVerJugadores, onVerCategoria }: Props) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [verTodas, setVerTodas] = useState(false);
@@ -134,7 +141,7 @@ export default function InicioPage({ onSection, onVerJugadores }: { onSection: (
             {visibles.map(c => (
               <button
                 key={c.id}
-                onClick={() => onSection('club')}
+                onClick={() => onVerCategoria(c.id)}
                 className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left"
                 style={{
                   backgroundColor: 'var(--brand-surface)',

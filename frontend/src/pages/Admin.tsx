@@ -17,9 +17,10 @@ export default function Admin() {
   // cocheras, no en la vista por defecto de Club.
   const [clubView, setClubView] = useState<'categorias' | 'cocheras'>('categorias');
   const [jugadoresFilter, setJugadoresFilter] = useState<MemberFilter>('todos');
+  const [clubCategoriaId, setClubCategoriaId] = useState<number | null>(null);
 
   const irA = (s: AdminSection) => {
-    if (s !== 'club') setClubView('categorias');
+    if (s !== 'club') { setClubView('categorias'); setClubCategoriaId(null); }
     if (s !== 'jugadores') setJugadoresFilter('todos');
     setSection(s);
   };
@@ -27,6 +28,12 @@ export default function Admin() {
   const verJugadores = (filtro?: MemberFilter) => {
     setJugadoresFilter(filtro ?? 'todos');
     setSection('jugadores');
+  };
+
+  const verCategoria = (id: number) => {
+    setClubView('categorias');
+    setClubCategoriaId(id);
+    setSection('club');
   };
 
   useEffect(() => {
@@ -51,14 +58,14 @@ export default function Admin() {
       onLogout={logout}
       flagged={flagged}
     >
-      {section === 'inicio' && <InicioPage onSection={irA} onVerJugadores={verJugadores} />}
+      {section === 'inicio' && <InicioPage onSection={irA} onVerJugadores={verJugadores} onVerCategoria={verCategoria} />}
       {section === 'jugadores' && (
         <JugadoresPage
-          onIrACocheras={() => { setClubView('cocheras'); setSection('club'); }}
+          onIrACocheras={() => { setClubView('cocheras'); setClubCategoriaId(null); setSection('club'); }}
           initialFilter={jugadoresFilter}
         />
       )}
-      {section === 'club' && <ClubPage initialView={clubView} />}
+      {section === 'club' && <ClubPage initialView={clubView} initialCategoriaId={clubCategoriaId} />}
       {section === 'analitica' && <Analytics />}
       {section === 'config' && (
         <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
