@@ -212,19 +212,51 @@ async function audit(
  * jugador; el constraint EXCLUDE de la base es la red de último recurso.
  * Mismo patrón transaccional que routes/parking.ts.
  */
-async function withMemberLock<T>(
-  memberId: string,
-  fn: (client: PoolClient, memberCreatedAt: string) => Promise<T>
+/** Datos del jugador que el lock deja disponibles dentro de la transacción. */
+interface LockedMember {
+  id: string;
+  createdAt: string;
+  nombre: string;
+  apellido: string;
+}
+
+/** Nombre legible para los mensajes de error: un UUID no le dice nada a nadie. */
+function displayName(m: LockedMember): string {
+  return `${m.apellido}, ${m.nombre}`.trim();
+}
+
+/**
+ * Abre la transacción, toma FOR UPDATE sobre los jugadores indicados y ejecuta.
+ * Cualquier error hace ROLLBACK: por eso un lote es atómico sin lógica extra.
+ *
+ * El ORDER BY id no es decorativo: dos lotes concurrentes con jugadores en
+ * común tomarían los locks en órdenes distintos y se trabarían mutuamente
+ * (deadlock). Con un orden determinista uno espera al otro.
+ */
+async function withMembersLock<T>(
+  memberIds: string[],
+  fn: (client: PoolClient, members: LockedMember[]) => Promise<T>
 ): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      'SELECT id, created_at FROM members WHERE id = $1 FOR UPDATE',
-      [memberId]
+      `SELECT id, created_at, nombre, apellido FROM members
+       WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE`,
+      [memberIds]
     );
-    if (!rows[0]) throw new MembershipError(404, 'Jugador no encontrado');
-    const result = await fn(client, toDateString(rows[0].created_at));
+    const members: LockedMember[] = rows.map(r => ({
+      id: r.id,
+      createdAt: toDateString(r.created_at),
+      nombre: r.nombre,
+      apellido: r.apellido,
+    }));
+    if (members.length !== memberIds.length) {
+      throw new MembershipError(404, 'Jugador no encontrado', {
+        missing: memberIds.filter(id => !members.some(m => m.id === id)),
+      });
+    }
+    const result = await fn(client, members);
     await client.query('COMMIT');
     return result;
   } catch (err) {
@@ -238,6 +270,17 @@ async function withMemberLock<T>(
   } finally {
     client.release();
   }
+}
+
+/**
+ * Ejecuta una transición sobre un único jugador. Caso particular del lock de
+ * lote, para no tener dos formas de abrir la misma transacción.
+ */
+async function withMemberLock<T>(
+  memberId: string,
+  fn: (client: PoolClient, memberCreatedAt: string) => Promise<T>
+): Promise<T> {
+  return withMembersLock([memberId], (client, members) => fn(client, members[0].createdAt));
 }
 
 /**
@@ -276,6 +319,39 @@ function validateEffectiveFrom(
   }
 }
 
+// ── Reglas de transición ──────────────────────────────────────────────────────
+// Separadas del cuerpo de cada operación para que la validación previa del lote
+// y la aplicación individual compartan exactamente el mismo criterio.
+
+function suspendConflict(state: MembershipState): string | null {
+  if (state.status === 'SUSPENDED') return 'ya tiene una suspensión vigente';
+  if (state.status === 'TERMINATED') return 'está dado de baja; reactivalo antes de suspenderlo';
+  return null;
+}
+
+function terminateConflict(state: MembershipState): string | null {
+  return state.status === 'TERMINATED' ? 'ya está dado de baja' : null;
+}
+
+function assertCanSuspend(state: MembershipState): void {
+  if (state.status === 'SUSPENDED') {
+    throw new MembershipError(409, 'El jugador ya tiene una suspensión vigente', state);
+  }
+  if (state.status === 'TERMINATED') {
+    throw new MembershipError(
+      409,
+      'El jugador está dado de baja. Reactivalo antes de suspenderlo.',
+      state
+    );
+  }
+}
+
+function assertCanTerminate(state: MembershipState): void {
+  if (state.status === 'TERMINATED') {
+    throw new MembershipError(409, 'El jugador ya está dado de baja', state);
+  }
+}
+
 // ── Transiciones ──────────────────────────────────────────────────────────────
 
 export interface SuspendInput {
@@ -286,52 +362,61 @@ export interface SuspendInput {
   actorId: string;
 }
 
+interface SuspendOpts {
+  effectiveFrom?: string;
+  effectiveUntil?: string | null;
+  reason: string;
+  actorId: string;
+}
+
+/**
+ * Cuerpo de la suspensión dentro de una transacción ya abierta, con el lock del
+ * jugador tomado. Única fuente de verdad: la comparten `suspend` y `bulkSuspend`.
+ * `reason` llega ya normalizado por `assertReason`.
+ */
+async function suspendTx(
+  client: PoolClient,
+  member: LockedMember,
+  opts: SuspendOpts
+): Promise<MembershipPeriod> {
+  const today = await todayAr(client);
+  const from = opts.effectiveFrom ? assertIsoDate(opts.effectiveFrom, 'effective_from') : today;
+  const until = opts.effectiveUntil ? assertIsoDate(opts.effectiveUntil, 'effective_until') : null;
+
+  validateEffectiveFrom(from, today, member.createdAt);
+  if (until && until <= from) {
+    throw new MembershipError(400, 'La fecha de finalización debe ser posterior a la de inicio');
+  }
+
+  const state = await getMembershipState(member.id, client);
+  assertCanSuspend(state);
+
+  const { rows } = await client.query(
+    `INSERT INTO membership_periods
+       (member_id, kind, effective_from, effective_until, reason, created_by)
+     VALUES ($1, 'SUSPENSION', $2, $3, $4, $5)
+     RETURNING *`,
+    [member.id, from, until, opts.reason, opts.actorId]
+  );
+
+  await audit(client, {
+    entity: 'member',
+    entityId: member.id,
+    action: 'suspended',
+    oldValue: { status: state.status },
+    newValue: { status: 'SUSPENDED', effective_from: from, effective_until: until },
+    actorId: opts.actorId,
+    reason: opts.reason,
+  });
+  await syncLegacyActivo(client, member.id);
+  return rows[0];
+}
+
 export async function suspend(input: SuspendInput): Promise<MembershipPeriod> {
   const reason = assertReason(input.reason, true)!;
-  return withMemberLock(input.memberId, async (client, memberCreatedAt) => {
-    const today = await todayAr(client);
-    const from = input.effectiveFrom ? assertIsoDate(input.effectiveFrom, 'effective_from') : today;
-    const until = input.effectiveUntil
-      ? assertIsoDate(input.effectiveUntil, 'effective_until')
-      : null;
-
-    validateEffectiveFrom(from, today, memberCreatedAt);
-    if (until && until <= from) {
-      throw new MembershipError(400, 'La fecha de finalización debe ser posterior a la de inicio');
-    }
-
-    const state = await getMembershipState(input.memberId, client);
-    if (state.status === 'SUSPENDED') {
-      throw new MembershipError(409, 'El jugador ya tiene una suspensión vigente', state);
-    }
-    if (state.status === 'TERMINATED') {
-      throw new MembershipError(
-        409,
-        'El jugador está dado de baja. Reactivalo antes de suspenderlo.',
-        state
-      );
-    }
-
-    const { rows } = await client.query(
-      `INSERT INTO membership_periods
-         (member_id, kind, effective_from, effective_until, reason, created_by)
-       VALUES ($1, 'SUSPENSION', $2, $3, $4, $5)
-       RETURNING *`,
-      [input.memberId, from, until, reason, input.actorId]
-    );
-
-    await audit(client, {
-      entity: 'member',
-      entityId: input.memberId,
-      action: 'suspended',
-      oldValue: { status: state.status },
-      newValue: { status: 'SUSPENDED', effective_from: from, effective_until: until },
-      actorId: input.actorId,
-      reason,
-    });
-    await syncLegacyActivo(client, input.memberId);
-    return rows[0];
-  });
+  return withMembersLock([input.memberId], (client, members) =>
+    suspendTx(client, members[0], { ...input, reason })
+  );
 }
 
 export interface TerminateInput {
@@ -341,89 +426,100 @@ export interface TerminateInput {
   actorId: string;
 }
 
+interface TerminateOpts {
+  effectiveFrom?: string;
+  reason: string;
+  actorId: string;
+}
+
+async function terminateTx(
+  client: PoolClient,
+  member: LockedMember,
+  opts: TerminateOpts
+): Promise<MembershipPeriod> {
+  const today = await todayAr(client);
+  const from = opts.effectiveFrom ? assertIsoDate(opts.effectiveFrom, 'effective_from') : today;
+  validateEffectiveFrom(from, today, member.createdAt);
+
+  const state = await getMembershipState(member.id, client);
+  assertCanTerminate(state);
+
+  // Una suspensión vigente se cierra para no solapar con la baja. Si la baja
+  // es retroactiva y cae antes del inicio de la suspensión, se cancela el
+  // período completo en vez de producir un rango inválido.
+  if (state.status === 'SUSPENDED' && state.period_id) {
+    if (state.status_since && from <= state.status_since) {
+      await client.query(`UPDATE membership_periods SET cancelled_at = NOW() WHERE id = $1`, [
+        state.period_id,
+      ]);
+    } else {
+      await client.query(
+        `UPDATE membership_periods
+         SET effective_until = $2, closed_at = NOW(), closed_by = $3,
+             close_reason = 'Cerrada por baja definitiva'
+         WHERE id = $1`,
+        [state.period_id, from, opts.actorId]
+      );
+    }
+  }
+
+  const { rows } = await client.query(
+    `INSERT INTO membership_periods
+       (member_id, kind, effective_from, effective_until, reason, created_by)
+     VALUES ($1, 'TERMINATION', $2, NULL, $3, $4)
+     RETURNING *`,
+    [member.id, from, opts.reason, opts.actorId]
+  );
+
+  // Regla F: la baja libera la cochera en la MISMA transacción. Se captura el
+  // valor anterior antes del UPDATE porque parking_spots no tiene historial
+  // propio: audit_log.old_value es la única trazabilidad posible hoy.
+  const { rows: spots } = await client.query(
+    'SELECT id, spot_number FROM parking_spots WHERE member_id = $1',
+    [member.id]
+  );
+  if (spots.length > 0) {
+    await client.query('UPDATE parking_spots SET member_id = NULL WHERE member_id = $1', [
+      member.id,
+    ]);
+    for (const spot of spots) {
+      await audit(client, {
+        entity: 'parking_spot',
+        // audit_log.entity_id es UUID y parking_spots.id es SERIAL, por lo que
+        // no entra. Se ancla al jugador (que es de quien trata la operación) y
+        // el espacio concreto queda identificado en el payload JSONB.
+        entityId: member.id,
+        action: 'released_on_termination',
+        oldValue: { spot_id: spot.id, spot_number: spot.spot_number, member_id: member.id },
+        newValue: { spot_id: spot.id, spot_number: spot.spot_number, member_id: null },
+        actorId: opts.actorId,
+        reason: 'Baja administrativa del jugador',
+      });
+    }
+  }
+
+  await audit(client, {
+    entity: 'member',
+    entityId: member.id,
+    action: 'terminated',
+    oldValue: { status: state.status },
+    newValue: {
+      status: 'TERMINATED',
+      effective_from: from,
+      parking_released: spots.map(s => s.spot_number),
+    },
+    actorId: opts.actorId,
+    reason: opts.reason,
+  });
+  await syncLegacyActivo(client, member.id);
+  return rows[0];
+}
+
 export async function terminate(input: TerminateInput): Promise<MembershipPeriod> {
   const reason = assertReason(input.reason, true)!;
-  return withMemberLock(input.memberId, async (client, memberCreatedAt) => {
-    const today = await todayAr(client);
-    const from = input.effectiveFrom ? assertIsoDate(input.effectiveFrom, 'effective_from') : today;
-    validateEffectiveFrom(from, today, memberCreatedAt);
-
-    const state = await getMembershipState(input.memberId, client);
-    if (state.status === 'TERMINATED') {
-      throw new MembershipError(409, 'El jugador ya está dado de baja', state);
-    }
-
-    // Una suspensión vigente se cierra para no solapar con la baja. Si la baja
-    // es retroactiva y cae antes del inicio de la suspensión, se cancela el
-    // período completo en vez de producir un rango inválido.
-    if (state.status === 'SUSPENDED' && state.period_id) {
-      if (state.status_since && from <= state.status_since) {
-        await client.query(
-          `UPDATE membership_periods SET cancelled_at = NOW() WHERE id = $1`,
-          [state.period_id]
-        );
-      } else {
-        await client.query(
-          `UPDATE membership_periods
-           SET effective_until = $2, closed_at = NOW(), closed_by = $3,
-               close_reason = 'Cerrada por baja definitiva'
-           WHERE id = $1`,
-          [state.period_id, from, input.actorId]
-        );
-      }
-    }
-
-    const { rows } = await client.query(
-      `INSERT INTO membership_periods
-         (member_id, kind, effective_from, effective_until, reason, created_by)
-       VALUES ($1, 'TERMINATION', $2, NULL, $3, $4)
-       RETURNING *`,
-      [input.memberId, from, reason, input.actorId]
-    );
-
-    // Regla F: la baja libera la cochera en la MISMA transacción. Se captura el
-    // valor anterior antes del UPDATE porque parking_spots no tiene historial
-    // propio: audit_log.old_value es la única trazabilidad posible hoy.
-    const { rows: spots } = await client.query(
-      'SELECT id, spot_number FROM parking_spots WHERE member_id = $1',
-      [input.memberId]
-    );
-    if (spots.length > 0) {
-      await client.query('UPDATE parking_spots SET member_id = NULL WHERE member_id = $1', [
-        input.memberId,
-      ]);
-      for (const spot of spots) {
-        await audit(client, {
-          entity: 'parking_spot',
-          // audit_log.entity_id es UUID y parking_spots.id es SERIAL, por lo que
-          // no entra. Se ancla al jugador (que es de quien trata la operación) y
-          // el espacio concreto queda identificado en el payload JSONB.
-          entityId: input.memberId,
-          action: 'released_on_termination',
-          oldValue: { spot_id: spot.id, spot_number: spot.spot_number, member_id: input.memberId },
-          newValue: { spot_id: spot.id, spot_number: spot.spot_number, member_id: null },
-          actorId: input.actorId,
-          reason: 'Baja administrativa del jugador',
-        });
-      }
-    }
-
-    await audit(client, {
-      entity: 'member',
-      entityId: input.memberId,
-      action: 'terminated',
-      oldValue: { status: state.status },
-      newValue: {
-        status: 'TERMINATED',
-        effective_from: from,
-        parking_released: spots.map(s => s.spot_number),
-      },
-      actorId: input.actorId,
-      reason,
-    });
-    await syncLegacyActivo(client, input.memberId);
-    return rows[0];
-  });
+  return withMembersLock([input.memberId], (client, members) =>
+    terminateTx(client, members[0], { ...input, reason })
+  );
 }
 
 export interface ReactivateInput {
@@ -439,52 +535,178 @@ export interface ReactivateResult {
   closed_period_id: string | null;
 }
 
+interface ReactivateOpts {
+  effectiveFrom?: string;
+  reason: string | null;
+  actorId: string;
+}
+
+async function reactivateTx(
+  client: PoolClient,
+  member: LockedMember,
+  opts: ReactivateOpts
+): Promise<ReactivateResult> {
+  const today = await todayAr(client);
+  const from = opts.effectiveFrom ? assertIsoDate(opts.effectiveFrom, 'effective_from') : today;
+  validateEffectiveFrom(from, today, member.createdAt);
+
+  const state = await getMembershipState(member.id, client);
+  if (state.status === 'ACTIVE') {
+    // Idempotente: el resultado deseado ya es el estado actual.
+    return { status: 'ACTIVE' as const, noop: true, closed_period_id: null };
+  }
+
+  const periodId = state.period_id!;
+  if (state.status_since && from <= state.status_since) {
+    // Reactivación anterior al inicio del período: el período no llegó a
+    // tener efecto, se cancela en vez de dejar un rango vacío o inválido.
+    await client.query(`UPDATE membership_periods SET cancelled_at = NOW() WHERE id = $1`, [
+      periodId,
+    ]);
+  } else {
+    await client.query(
+      `UPDATE membership_periods
+       SET effective_until = $2, closed_at = NOW(), closed_by = $3, close_reason = $4
+       WHERE id = $1`,
+      [periodId, from, opts.actorId, opts.reason]
+    );
+  }
+
+  await audit(client, {
+    entity: 'member',
+    entityId: member.id,
+    action: 'reactivated',
+    oldValue: { status: state.status, since: state.status_since, until: state.status_until },
+    newValue: { status: 'ACTIVE', effective_from: from, closed_period_id: periodId },
+    actorId: opts.actorId,
+    reason: opts.reason,
+  });
+  await syncLegacyActivo(client, member.id);
+  return { status: 'ACTIVE' as const, noop: false, closed_period_id: periodId };
+}
+
 /**
  * Cierra el período restrictivo vigente. No crea un jugador nuevo, no toca
  * created_at, categoria_id ni check_ins (Regla D). No reasigna la cochera (Regla F).
  */
 export async function reactivate(input: ReactivateInput): Promise<ReactivateResult> {
   const reason = assertReason(input.reason, false);
-  return withMemberLock(input.memberId, async (client, memberCreatedAt) => {
-    const today = await todayAr(client);
-    const from = input.effectiveFrom ? assertIsoDate(input.effectiveFrom, 'effective_from') : today;
-    validateEffectiveFrom(from, today, memberCreatedAt);
+  return withMembersLock([input.memberId], (client, members) =>
+    reactivateTx(client, members[0], { ...input, reason })
+  );
+}
 
-    const state = await getMembershipState(input.memberId, client);
-    if (state.status === 'ACTIVE') {
-      // Idempotente: el resultado deseado ya es el estado actual.
-      return { status: 'ACTIVE' as const, noop: true, closed_period_id: null };
+// ── Acciones masivas ──────────────────────────────────────────────────────────
+
+export interface BulkResult {
+  applied: number;
+  member_ids: string[];
+}
+
+/**
+ * Tope de cordura: el club tiene 108 jugadores. Un lote mayor es un error de
+ * la interfaz o un intento de bloquear la tabla entera dentro de una sola
+ * transacción.
+ */
+export const BULK_MAX_MEMBERS = 200;
+
+function normalizeMemberIds(memberIds: unknown): string[] {
+  if (!Array.isArray(memberIds) || memberIds.length === 0) {
+    throw new MembershipError(400, 'Seleccioná al menos un jugador');
+  }
+  // Duplicados: no es un error del usuario, es ruido de la selección.
+  const unique = Array.from(new Set(memberIds.map(String)));
+  if (unique.length > BULK_MAX_MEMBERS) {
+    throw new MembershipError(
+      400,
+      `No se pueden procesar más de ${BULK_MAX_MEMBERS} jugadores en un mismo lote`
+    );
+  }
+  return unique;
+}
+
+/**
+ * Valida la transición de TODOS antes de aplicar la de ninguno, y arma un
+ * mensaje que nombra a los jugadores en conflicto: quien tiene que sacarlos de
+ * la selección no puede hacerlo con un UUID.
+ */
+async function assertNoConflicts(
+  client: PoolClient,
+  members: LockedMember[],
+  conflictOf: (state: MembershipState) => string | null
+): Promise<void> {
+  const conflicts: { member_id: string; nombre: string; motivo: string }[] = [];
+  for (const member of members) {
+    const motivo = conflictOf(await getMembershipState(member.id, client));
+    if (motivo) conflicts.push({ member_id: member.id, nombre: displayName(member), motivo });
+  }
+  if (conflicts.length === 0) return;
+  const detalle = conflicts.map(c => `${c.nombre} (${c.motivo})`).join('; ');
+  throw new MembershipError(
+    409,
+    `No se aplicó ningún cambio. ${conflicts.length === 1 ? 'Un jugador' : `${conflicts.length} jugadores`} no admiten la operación: ${detalle}`,
+    { conflicts }
+  );
+}
+
+export async function bulkSuspend(input: {
+  memberIds: string[];
+  effectiveFrom?: string;
+  effectiveUntil?: string | null;
+  reason: string;
+  actorId: string;
+}): Promise<BulkResult> {
+  const ids = normalizeMemberIds(input.memberIds);
+  const reason = assertReason(input.reason, true)!;
+  return withMembersLock(ids, async (client, members) => {
+    await assertNoConflicts(client, members, suspendConflict);
+    for (const member of members) {
+      await suspendTx(client, member, { ...input, reason });
     }
-
-    const periodId = state.period_id!;
-    if (state.status_since && from <= state.status_since) {
-      // Reactivación anterior al inicio del período: el período no llegó a
-      // tener efecto, se cancela en vez de dejar un rango vacío o inválido.
-      await client.query(`UPDATE membership_periods SET cancelled_at = NOW() WHERE id = $1`, [
-        periodId,
-      ]);
-    } else {
-      await client.query(
-        `UPDATE membership_periods
-         SET effective_until = $2, closed_at = NOW(), closed_by = $3, close_reason = $4
-         WHERE id = $1`,
-        [periodId, from, input.actorId, reason]
-      );
-    }
-
-    await audit(client, {
-      entity: 'member',
-      entityId: input.memberId,
-      action: 'reactivated',
-      oldValue: { status: state.status, since: state.status_since, until: state.status_until },
-      newValue: { status: 'ACTIVE', effective_from: from, closed_period_id: periodId },
-      actorId: input.actorId,
-      reason,
-    });
-    await syncLegacyActivo(client, input.memberId);
-    return { status: 'ACTIVE' as const, noop: false, closed_period_id: periodId };
+    return { applied: members.length, member_ids: members.map(m => m.id) };
   });
 }
+
+export async function bulkTerminate(input: {
+  memberIds: string[];
+  effectiveFrom?: string;
+  reason: string;
+  actorId: string;
+}): Promise<BulkResult> {
+  const ids = normalizeMemberIds(input.memberIds);
+  const reason = assertReason(input.reason, true)!;
+  return withMembersLock(ids, async (client, members) => {
+    await assertNoConflicts(client, members, terminateConflict);
+    for (const member of members) {
+      await terminateTx(client, member, { ...input, reason });
+    }
+    return { applied: members.length, member_ids: members.map(m => m.id) };
+  });
+}
+
+/**
+ * Reactivar a alguien que ya está activo es no-op, igual que en la versión
+ * individual: no hay conflicto que validar y no hace fallar el lote. `applied`
+ * cuenta sólo a los que efectivamente cambiaron de estado.
+ */
+export async function bulkReactivate(input: {
+  memberIds: string[];
+  effectiveFrom?: string;
+  reason?: string | null;
+  actorId: string;
+}): Promise<BulkResult> {
+  const ids = normalizeMemberIds(input.memberIds);
+  const reason = assertReason(input.reason, false);
+  return withMembersLock(ids, async (client, members) => {
+    const applied: string[] = [];
+    for (const member of members) {
+      const result = await reactivateTx(client, member, { ...input, reason });
+      if (!result.noop) applied.push(member.id);
+    }
+    return { applied: applied.length, member_ids: applied };
+  });
+}
+
 
 /**
  * Cancela un período cargado por error. No es una reactivación: borra el hecho

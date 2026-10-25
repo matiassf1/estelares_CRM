@@ -6,6 +6,9 @@ import {
   terminate,
   reactivate,
   cancelPeriod,
+  bulkSuspend,
+  bulkTerminate,
+  bulkReactivate,
   getMembershipState,
   getMembershipHistory,
 } from '../services/membership';
@@ -28,6 +31,54 @@ function handle(fn: (req: Request, res: Response) => Promise<void>) {
     }
   };
 }
+
+// ── Acciones masivas ──────────────────────────────────────────────────────────
+// Van ANTES que las rutas con :id. Express resuelve por orden de declaración y
+// '/members/bulk/suspend' también matchea '/members/:id/suspend' con id='bulk',
+// que terminaría en un 500 por UUID inválido.
+
+router.post(
+  '/members/bulk/suspend',
+  handle(async (req, res) => {
+    res.json(
+      await bulkSuspend({
+        memberIds: req.body.member_ids,
+        effectiveFrom: req.body.effective_from,
+        effectiveUntil: req.body.effective_until ?? null,
+        reason: req.body.reason,
+        actorId: req.user!.id,
+      })
+    );
+  })
+);
+
+router.post(
+  '/members/bulk/terminate',
+  handle(async (req, res) => {
+    res.json(
+      await bulkTerminate({
+        memberIds: req.body.member_ids,
+        effectiveFrom: req.body.effective_from,
+        reason: req.body.reason,
+        actorId: req.user!.id,
+      })
+    );
+  })
+);
+
+router.post(
+  '/members/bulk/reactivate',
+  handle(async (req, res) => {
+    res.json(
+      await bulkReactivate({
+        memberIds: req.body.member_ids,
+        effectiveFrom: req.body.effective_from,
+        reason: req.body.reason ?? null,
+        actorId: req.user!.id,
+      })
+    );
+  })
+);
 
 router.post(
   '/members/:id/suspend',
