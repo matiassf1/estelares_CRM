@@ -1,16 +1,17 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
 
-router.get('/', async (_req, res) => {
+router.get('/', asyncHandler(async (_req, res) => {
   const { rows } = await pool.query('SELECT * FROM categorias ORDER BY orden, nombre');
   res.json(rows);
-});
+}));
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { nombre, orden = 0, color } = req.body;
   if (!nombre) { res.status(400).json({ error: 'nombre es requerido' }); return; }
   if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) { res.status(400).json({ error: 'color debe ser hex #RRGGBB' }); return; }
@@ -27,9 +28,9 @@ router.post('/', async (req, res) => {
       throw err;
     }
   }
-});
+}));
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const { nombre, color } = req.body;
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -45,11 +46,11 @@ router.put('/:id', async (req, res) => {
     vals
   );
   res.json(rows[0]);
-});
+}));
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM categorias WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
-});
+}));
 
 export default router;

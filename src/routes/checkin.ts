@@ -4,10 +4,11 @@ import { authMiddleware, requireRole } from '../middleware/auth';
 import { isValidToken } from '../utils/token';
 import { CHECKED_IN_DATE_AR, todayArgentina } from '../utils/time';
 import { getMembershipState, assertCanCheckIn, MembershipError } from '../services/membership';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 
-router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
+router.post('/', authMiddleware, requireRole('member'), asyncHandler(async (req, res) => {
   const { token } = req.body;
   const memberId = req.user!.id;
 
@@ -53,9 +54,9 @@ router.post('/', authMiddleware, requireRole('member'), async (req, res) => {
   );
 
   res.json({ ok: true, member: rows[0] });
-});
+}));
 
-router.get('/today-status', authMiddleware, requireRole('member'), async (req, res) => {
+router.get('/today-status', authMiddleware, requireRole('member'), asyncHandler(async (req, res) => {
   const today = todayArgentina();
   const { rows } = await pool.query(
     `SELECT checked_in_at FROM check_ins WHERE member_id = $1 AND ${CHECKED_IN_DATE_AR} = $2`,
@@ -66,9 +67,9 @@ router.get('/today-status', authMiddleware, requireRole('member'), async (req, r
   } else {
     res.json({ ingresado: false });
   }
-});
+}));
 
-router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
+router.get('/today', authMiddleware, requireRole('admin', 'portero'), asyncHandler(async (req, res) => {
   const today = todayArgentina();
   const { rows } = await pool.query(
     `SELECT m.nombre, m.apellido, m.patente, m.tipo_vehiculo, c.checked_in_at
@@ -79,9 +80,9 @@ router.get('/today', authMiddleware, requireRole('admin', 'portero'), async (req
     [today]
   );
   res.json(rows);
-});
+}));
 
-router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
+router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), asyncHandler(async (req, res) => {
   const { member_id } = req.body;
 
   if (!member_id || typeof member_id !== 'string') {
@@ -128,6 +129,6 @@ router.post('/by-member', authMiddleware, requireRole('admin', 'portero'), async
   );
 
   res.json({ ok: true, member: { nombre: memberRows[0].nombre, apellido: memberRows[0].apellido }, already: false });
-});
+}));
 
 export default router;

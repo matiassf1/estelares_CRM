@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { CHECKED_IN_DATE_AR } from '../utils/time';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
@@ -17,7 +18,7 @@ function parseDateRange(req: Request): { from: string; to: string } | null {
  * GET /api/admin/analytics/overview
  * Query: from (YYYY-MM-DD), to (YYYY-MM-DD), categoryId? (number)
  */
-router.get('/overview', async (req: Request, res: Response) => {
+router.get('/overview', asyncHandler(async (req: Request, res: Response) => {
   const range = parseDateRange(req);
   if (!range) {
     res.status(400).json({ error: 'from y to requeridos (YYYY-MM-DD)' });
@@ -130,13 +131,13 @@ router.get('/overview', async (req: Request, res: Response) => {
     inactive_members: inactiveRes.rows,
     active_categories: activeCats.rows.map(r => ({ ...r, count: parseInt(r.count) })),
   });
-});
+}));
 
 /**
  * GET /api/admin/analytics/categories/:id
  * Query: from (YYYY-MM-DD), to (YYYY-MM-DD)
  */
-router.get('/categories/:id', async (req: Request, res: Response) => {
+router.get('/categories/:id', asyncHandler(async (req: Request, res: Response) => {
   const range = parseDateRange(req);
   if (!range) { res.status(400).json({ error: 'from y to requeridos' }); return; }
   const { from, to } = range;
@@ -207,13 +208,13 @@ router.get('/categories/:id', async (req: Request, res: Response) => {
     })),
     schedules: schedulesRes.rows,
   });
-});
+}));
 
 /**
  * GET /api/admin/analytics/traffic
  * Query: from (YYYY-MM-DD), to (YYYY-MM-DD), categoryId? (number)
  */
-router.get('/traffic', async (req: Request, res: Response) => {
+router.get('/traffic', asyncHandler(async (req: Request, res: Response) => {
   const range = parseDateRange(req);
   if (!range) { res.status(400).json({ error: 'from y to requeridos' }); return; }
   const { from, to } = range;
@@ -256,13 +257,13 @@ router.get('/traffic', async (req: Request, res: Response) => {
     by_weekday: byWeekday.rows.map(r => ({ weekday: r.weekday, count: parseInt(r.count) })),
     heatmap: heatmap.rows.map(r => ({ weekday: r.weekday, hour: r.hour, count: parseInt(r.count) })),
   });
-});
+}));
 
 /**
  * GET /api/admin/analytics/members/:id
  * Query: from (YYYY-MM-DD), to (YYYY-MM-DD)
  */
-router.get('/members/:id', async (req: Request, res: Response) => {
+router.get('/members/:id', asyncHandler(async (req: Request, res: Response) => {
   const range = parseDateRange(req);
   if (!range) { res.status(400).json({ error: 'from y to requeridos' }); return; }
   const { from, to } = range;
@@ -374,13 +375,13 @@ router.get('/members/:id', async (req: Request, res: Response) => {
     days_since_last: daysSinceLast,
     history,
   });
-});
+}));
 
 /**
  * GET /api/admin/analytics/insights
  * Query: from (YYYY-MM-DD), to (YYYY-MM-DD)
  */
-router.get('/insights', async (req: Request, res: Response) => {
+router.get('/insights', asyncHandler(async (req: Request, res: Response) => {
   const range = parseDateRange(req);
   if (!range) { res.status(400).json({ error: 'from y to requeridos' }); return; }
   const { from, to } = range;
@@ -453,6 +454,6 @@ router.get('/insights', async (req: Request, res: Response) => {
   }
 
   res.json(insights);
-});
+}));
 
 export default router;

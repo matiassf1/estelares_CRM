@@ -3,11 +3,12 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { CHECKED_IN_DATE_AR, todayArgentina } from '../utils/time';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
 
-router.get('/members', async (req, res) => {
+router.get('/members', asyncHandler(async (req, res) => {
   const status = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : null;
   if (status && !['ACTIVE', 'SUSPENDED', 'TERMINATED'].includes(status)) {
     res.status(400).json({ error: 'status inválido' });
@@ -25,9 +26,9 @@ router.get('/members', async (req, res) => {
     status ? [status] : []
   );
   res.json(rows);
-});
+}));
 
-router.post('/members', async (req, res) => {
+router.post('/members', asyncHandler(async (req, res) => {
   const { nombre, apellido, dni, patente, password, foto_url, categoria_id, tipo_vehiculo } = req.body;
   if (!nombre || !apellido || !dni || !password) {
     res.status(400).json({ error: 'nombre, apellido, dni y password son requeridos' });
@@ -50,9 +51,9 @@ router.post('/members', async (req, res) => {
       throw err;
     }
   }
-});
+}));
 
-router.put('/members/:id', async (req, res) => {
+router.put('/members/:id', asyncHandler(async (req, res) => {
   const { nombre, apellido, dni, patente, password } = req.body;
 
   // El estado de membresía NO se cambia por este endpoint genérico: saltearía
@@ -90,7 +91,7 @@ router.put('/members/:id', async (req, res) => {
     values
   );
   res.json(rows[0]);
-});
+}));
 
 // Regla E: el borrado físico deja de ser una operación administrativa.
 // check_ins tiene ON DELETE CASCADE, por lo que un DELETE destruía el historial
@@ -102,7 +103,7 @@ router.delete('/members/:id', (_req, res) => {
   });
 });
 
-router.get('/stats', async (_req, res) => {
+router.get('/stats', asyncHandler(async (_req, res) => {
   const today = todayArgentina();
   const [{ rows: todayRows }, { rows: statusRows }] = await Promise.all([
     pool.query(
@@ -125,6 +126,6 @@ router.get('/stats', async (_req, res) => {
     // `total` se mantiene por compatibilidad con el frontend actual. Deprecado.
     total: byStatus.ACTIVE,
   });
-});
+}));
 
 export default router;

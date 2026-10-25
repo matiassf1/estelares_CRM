@@ -3,11 +3,12 @@ import QRCode from 'qrcode';
 import { pool } from '../../db';
 import { assocAuthMiddleware } from '../../middleware/assocAuth';
 import { generatePlayerQr } from '../../utils/assocQr';
+import { asyncHandler } from '../../utils/asyncHandler';
 
 const router = Router();
 
 // Demo endpoint — no auth required, must be before /:id routes
-router.get('/demo/carnets', async (req, res) => {
+router.get('/demo/carnets', asyncHandler(async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT p.id, p.first_name, p.last_name, p.qr_secret,
@@ -33,11 +34,11 @@ router.get('/demo/carnets', async (req, res) => {
     console.error('[assoc/players/demo/carnets]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 router.use(assocAuthMiddleware);
 
-router.get('/:id/carnet-qr', async (req, res) => {
+router.get('/:id/carnet-qr', asyncHandler(async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, qr_secret, first_name, last_name
@@ -54,6 +55,6 @@ router.get('/:id/carnet-qr', async (req, res) => {
     console.error('[assoc/players/carnet-qr]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 export default router;

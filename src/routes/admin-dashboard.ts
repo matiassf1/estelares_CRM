@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { CHECKED_IN_DATE_AR } from '../utils/time';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
@@ -15,7 +16,7 @@ const DIAS_CATEGORIA_TIBIA = 7;
  * Contadores del Inicio en una sola llamada. Son conteos sobre tablas chicas
  * (cientos de filas); si el club creciera, acá es donde hay que medir.
  */
-router.get('/dashboard', async (_req, res) => {
+router.get('/dashboard', asyncHandler(async (_req, res) => {
   const [pendientes, club, categorias] = await Promise.all([
     pool.query(
       `SELECT
@@ -94,6 +95,6 @@ router.get('/dashboard', async (_req, res) => {
       estado: r.estado as 'ok' | 'warn' | 'alert',
     })),
   });
-});
+}));
 
 export default router;

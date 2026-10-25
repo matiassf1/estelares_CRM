@@ -2,10 +2,11 @@ import { Router } from 'express';
 import QRCode from 'qrcode';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { getCurrentToken, secondsUntilNext } from '../utils/token';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 
-router.get('/qr', authMiddleware, requireRole('admin', 'portero'), async (req, res) => {
+router.get('/qr', authMiddleware, requireRole('admin', 'portero'), asyncHandler(async (req, res) => {
   const token = getCurrentToken();
   const appUrl = `${req.protocol}://${req.get('host')}`;
   const url = `${appUrl}/check-in?t=${token}`;
@@ -17,9 +18,9 @@ router.get('/qr', authMiddleware, requireRole('admin', 'portero'), async (req, r
   });
 
   res.json({ qr: qrDataUrl, token, expiresIn: secondsUntilNext() });
-});
+}));
 
-router.get('/carnet-qr', authMiddleware, requireRole('member'), async (req, res) => {
+router.get('/carnet-qr', authMiddleware, requireRole('member'), asyncHandler(async (req, res) => {
   const memberId = req.user!.id;
   const qrDataUrl = await QRCode.toDataURL(memberId, {
     width: 300,
@@ -27,6 +28,6 @@ router.get('/carnet-qr', authMiddleware, requireRole('member'), async (req, res)
     color: { dark: '#000000', light: '#ffffff' },
   });
   res.json({ qr: qrDataUrl });
-});
+}));
 
 export default router;
