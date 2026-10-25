@@ -15,6 +15,7 @@ import CategoryDetailView from '../components/admin/CategoryDetailView';
 import MembershipBadge from '../components/admin/MembershipBadge';
 import MembershipSheet, { type MembershipOp } from '../components/admin/MembershipSheet';
 import MembershipTimeline from '../components/admin/MembershipTimeline';
+import InfoPanel from '../components/admin/InfoPanel';
 
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
@@ -531,13 +532,13 @@ export default function Admin() {
               />
             )}
             {historyMember && (
-              <ConfirmModal
-                title={`Historial de ${historyMember.nombre} ${historyMember.apellido}`}
-                body={<MembershipTimeline memberId={historyMember.id} />}
-                onCancel={() => setHistoryMember(null)}
-                onConfirm={() => setHistoryMember(null)}
-                confirmLabel="Cerrar"
-              />
+              <InfoPanel
+                title="Historial administrativo"
+                subtitle={`${historyMember.apellido}, ${historyMember.nombre}`}
+                onClose={() => setHistoryMember(null)}
+              >
+                <MembershipTimeline memberId={historyMember.id} />
+              </InfoPanel>
             )}
             {toast && (
               <Toast

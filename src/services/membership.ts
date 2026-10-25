@@ -115,9 +115,18 @@ export async function getMembershipState(
  */
 export async function getMembershipHistory(memberId: string) {
   const [periods, events] = await Promise.all([
+    // Los períodos son la fuente de verdad y ya contienen todo lo que la línea
+    // de tiempo necesita mostrar: tipo, fechas, motivo, autor y cierre. Sólo
+    // faltan los nombres de usuario, que se resuelven acá.
     pool.query(
-      `SELECT * FROM membership_periods WHERE member_id = $1
-       ORDER BY effective_from DESC, created_at DESC`,
+      `SELECT p.*,
+              ac.username AS created_by_username,
+              cl.username AS closed_by_username
+       FROM membership_periods p
+       LEFT JOIN admins ac ON ac.id = p.created_by
+       LEFT JOIN admins cl ON cl.id = p.closed_by
+       WHERE p.member_id = $1
+       ORDER BY p.effective_from DESC, p.created_at DESC`,
       [memberId]
     ),
     pool.query(
@@ -137,6 +146,8 @@ export async function getMembershipHistory(memberId: string) {
       effective_until: p.effective_until ? toDateString(p.effective_until) : null,
     })),
     events: events.rows,
+    /** True cuando el jugador nunca tuvo movimientos administrativos. */
+    empty: periods.rows.length === 0 && events.rows.length === 0,
   };
 }
 

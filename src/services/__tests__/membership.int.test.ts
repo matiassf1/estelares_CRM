@@ -398,7 +398,45 @@ describe('auditoría', () => {
     const h = await getMembershipHistory(id);
     expect(h.periods).toHaveLength(1);
     expect(h.events).toHaveLength(1);
+    expect(h.empty).toBe(false);
     expect(h.periods[0].effective_from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('el historial resuelve los nombres de usuario de autor y de cierre', async () => {
+    const id = await createMember();
+    await suspend({ memberId: id, effectiveFrom: await dayOffset(-10), reason: 'Lesión', actorId: adminId });
+    await reactivate({ memberId: id, reason: 'Alta médica', actorId: adminId });
+
+    const h = await getMembershipHistory(id);
+    expect(h.periods[0].created_by_username).toBe('admin');
+    expect(h.periods[0].closed_by_username).toBe('admin');
+    expect(h.periods[0].close_reason).toBe('Alta médica');
+  });
+
+  it('un jugador sin movimientos reporta historial vacío', async () => {
+    const id = await createMember();
+    const h = await getMembershipHistory(id);
+    expect(h.empty).toBe(true);
+    expect(h.periods).toHaveLength(0);
+  });
+
+  // Regresión: el backfill de 004 creaba el período sin la entrada en
+  // audit_log, y la línea de tiempo se dibujaba sólo desde audit_log. Los 18
+  // jugadores migrados mostraban "sin movimientos" pese a estar suspendidos.
+  it('un jugador migrado NUNCA reporta historial vacío', async () => {
+    const id = await createMember();
+    await pool.query(
+      `INSERT INTO membership_periods
+         (member_id, kind, effective_from, reason, created_by, legacy_migrated)
+       VALUES ($1, 'SUSPENSION', CAST((NOW() - INTERVAL '3 hours') AS DATE),
+               'Estado migrado automáticamente', $2, true)`,
+      [id, adminId]
+    );
+
+    const h = await getMembershipHistory(id);
+    expect(h.empty).toBe(false);
+    expect(h.periods).toHaveLength(1);
+    expect(h.periods[0].legacy_migrated).toBe(true);
   });
 
   it('una transición fallida no deja rastro parcial', async () => {
