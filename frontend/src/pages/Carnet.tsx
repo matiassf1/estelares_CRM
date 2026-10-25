@@ -119,7 +119,7 @@ export default function Carnet({ mock }: Props) {
           className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-card-reveal"
           style={{ border: '1px solid rgb(var(--brand-primary-rgb) / 0.2)', animationDelay: '0.05s' }}
         >
-          {/* RED HEADER */}
+          {/* HEADER */}
           <div className="relative overflow-hidden px-5 pt-5 pb-16"
             style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 100%)' }}>
             <div className="absolute inset-0 pattern-lines opacity-20" />
@@ -133,11 +133,11 @@ export default function Carnet({ mock }: Props) {
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-0.5"
-                  style={{ color: 'rgba(0,0,0,0.75)' }}>
+                  style={{ color: 'color-mix(in srgb, var(--brand-on-primary) 75%, transparent)' }}>
                   Estelares Futsal
                 </p>
                 <p className="font-display text-3xl tracking-widest leading-none" style={{ color: 'var(--brand-on-primary)' }}>CARNET</p>
-                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'rgba(0,0,0,0.6)' }}>
+                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'color-mix(in srgb, var(--brand-on-primary) 60%, transparent)' }}>
                   TEMPORADA {temporada}
                 </p>
               </div>
