@@ -3,7 +3,7 @@ import request from 'supertest';
 import { pool } from '../../db';
 import { createApp } from '../../app';
 import { signToken } from '../../middleware/auth';
-import { suspend } from '../../services/membership';
+import { suspend, terminate } from '../../services/membership';
 import { resetDb, getAdminId, createMember, addCheckIn } from '../../services/__tests__/helpers';
 
 const app = createApp();
@@ -138,5 +138,43 @@ describe('GET /api/admin/dashboard', () => {
     expect(res.body.pendientes).toEqual({ descolgados: 0, a_revisar: 0, sin_foto: 0, horarios: 0 });
     expect(res.body.club.activos).toBe(0);
     expect(res.body.categorias).toEqual([]);
+  });
+
+  it('una categoría cuyos jugadores activos nunca hicieron check-in queda en alert', async () => {
+    const { rows } = await pool.query(
+      `INSERT INTO categorias (nombre) VALUES ('SinIngresos') RETURNING id, nombre`
+    );
+    const id = await createMember();
+    await pool.query('UPDATE members SET categoria_id=$1 WHERE id=$2', [rows[0].id, id]);
+
+    const res = await get().expect(200);
+    const cat = res.body.categorias.find((c: { nombre: string }) => c.nombre === 'SinIngresos');
+    expect(cat.estado).toBe('alert');
+    expect(cat.ultimo_ingreso).toBeNull();
+  });
+
+  it('ultimo_ingreso tiene formato YYYY-MM-DD', async () => {
+    const { rows } = await pool.query(
+      `INSERT INTO categorias (nombre) VALUES ('ConIngreso') RETURNING id, nombre`
+    );
+    const id = await createMember();
+    await pool.query('UPDATE members SET categoria_id=$1 WHERE id=$2', [rows[0].id, id]);
+    await addCheckIn(id, 1);
+
+    const res = await get().expect(200);
+    const cat = res.body.categorias.find((c: { nombre: string }) => c.nombre === 'ConIngreso');
+    expect(cat.ultimo_ingreso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('un jugador dado de baja no cuenta como activo, ni en sin_foto, ni en descolgados', async () => {
+    const id = await createMember();
+    await addCheckIn(id, 40);
+    await terminate({ memberId: id, reason: 'Retiro', actorId: adminId });
+
+    const res = await get().expect(200);
+    expect(res.body.club.activos).toBe(0);
+    expect(res.body.club.bajas).toBe(1);
+    expect(res.body.pendientes.sin_foto).toBe(0);
+    expect(res.body.pendientes.descolgados).toBe(0);
   });
 });

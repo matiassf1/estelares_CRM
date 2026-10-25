@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
+import { CHECKED_IN_DATE_AR } from '../utils/time';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
@@ -42,29 +43,25 @@ router.get('/dashboard', async (_req, res) => {
             WHERE checked_in_at > NOW() - INTERVAL '7 days') AS jugadores_7d`
     ),
     pool.query(
-      `SELECT c.id, c.nombre,
-              COUNT(DISTINCT m.id) AS activos,
-              MAX(CAST((ci.checked_in_at - INTERVAL '3 hours') AS DATE)) AS ultimo_ingreso,
-              CASE
-                WHEN COALESCE(MAX(ci.checked_in_at), '-infinity'::timestamp)
-                     < NOW() - ($1::int * INTERVAL '1 day') THEN 'alert'
-                WHEN COALESCE(MAX(ci.checked_in_at), '-infinity'::timestamp)
-                     < NOW() - ($2::int * INTERVAL '1 day') THEN 'warn'
-                ELSE 'ok'
-              END AS estado
-       FROM categorias c
-       JOIN members m ON m.categoria_id = c.id
-       JOIN member_membership_state s ON s.member_id = m.id AND s.status = 'ACTIVE'
-       LEFT JOIN check_ins ci ON ci.member_id = m.id
-       GROUP BY c.id, c.nombre
-       ORDER BY CASE
+      `WITH cat AS (
+         SELECT c.id, c.nombre,
+                COUNT(DISTINCT m.id) AS activos,
+                MAX(${CHECKED_IN_DATE_AR}) AS ultimo_ingreso,
+                CASE
                   WHEN COALESCE(MAX(ci.checked_in_at), '-infinity'::timestamp)
-                       < NOW() - ($1::int * INTERVAL '1 day') THEN 0
+                       < NOW() - ($1::int * INTERVAL '1 day') THEN 'alert'
                   WHEN COALESCE(MAX(ci.checked_in_at), '-infinity'::timestamp)
-                       < NOW() - ($2::int * INTERVAL '1 day') THEN 1
-                  ELSE 2
-                END,
-                c.nombre`,
+                       < NOW() - ($2::int * INTERVAL '1 day') THEN 'warn'
+                  ELSE 'ok'
+                END AS estado
+         FROM categorias c
+         JOIN members m ON m.categoria_id = c.id
+         JOIN member_membership_state s ON s.member_id = m.id AND s.status = 'ACTIVE'
+         LEFT JOIN check_ins ci ON ci.member_id = m.id
+         GROUP BY c.id, c.nombre
+       )
+       SELECT * FROM cat
+       ORDER BY CASE estado WHEN 'alert' THEN 0 WHEN 'warn' THEN 1 ELSE 2 END, nombre`,
       [DIAS_DESCOLGADO, DIAS_CATEGORIA_TIBIA]
     ),
   ]);
