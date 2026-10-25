@@ -164,8 +164,8 @@ function ResultCard({
       {/* Next button */}
       <button
         onClick={onNext}
-        className="w-full mt-5 py-3 rounded-xl font-display tracking-widest text-white text-sm transition-all active:scale-95"
-        style={{ backgroundColor: 'var(--brand-primary)' }}
+        className="w-full mt-5 py-3 rounded-xl font-display tracking-widest text-sm transition-all active:scale-95"
+        style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
       >
         ESCANEAR SIGUIENTE
       </button>
@@ -355,8 +355,8 @@ export default function AssocAccreditation() {
             </div>
             <button
               onClick={startCamera}
-              className="px-8 py-4 rounded-2xl font-display tracking-widest text-white text-base transition-all active:scale-95"
-              style={{ backgroundColor: 'var(--brand-primary)' }}
+              className="px-8 py-4 rounded-2xl font-display tracking-widest text-base transition-all active:scale-95"
+              style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
             >
               ESCANEAR JUGADOR
             </button>

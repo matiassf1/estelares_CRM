@@ -21,8 +21,8 @@ function PlayerRow({ a }: { a: Accreditation }) {
         />
       ) : (
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-          style={{ backgroundColor: 'var(--brand-primary)' }}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+          style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
         >
           {(a.first_name[0] + a.last_name[0]).toUpperCase()}
         </div>

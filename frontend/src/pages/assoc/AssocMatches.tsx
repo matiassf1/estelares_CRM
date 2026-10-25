@@ -154,8 +154,8 @@ export default function AssocMatches() {
                   <button
                     onClick={() => handleOpen(m.id)}
                     disabled={opening === m.id}
-                    className="w-full py-3 rounded-xl font-display tracking-widest text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                    style={{ backgroundColor: 'var(--brand-primary)' }}
+                    className="w-full py-3 rounded-xl font-display tracking-widest text-sm transition-all active:scale-95 disabled:opacity-60"
+                    style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
                   >
                     {opening === m.id ? 'ABRIENDO…' : 'ABRIR ACREDITACIÓN'}
                   </button>

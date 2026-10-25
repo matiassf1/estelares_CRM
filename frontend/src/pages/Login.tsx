@@ -11,8 +11,7 @@ function SuspendedScreen({ onBack }: { onBack: () => void }) {
     <div className="min-h-screen pattern-lines flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--brand-bg)' }}>
       {/* Hero */}
       <div className="relative flex flex-col items-center justify-end pt-14 pb-16 overflow-hidden">
-        <div className="absolute inset-0 animate-diagonal-in"
-          style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 55%, transparent 55%)' }} />
+        <div className="absolute inset-0 animate-diagonal-in" />
         <div className="absolute inset-0 pattern-lines opacity-20 animate-diagonal-in" />
         <div className="relative z-10 flex flex-col items-center animate-slide-up-far">
           <ClubShield size={92} className="mb-4 animate-shield-glow-white" variant="white" />
@@ -136,7 +135,6 @@ export default function Login() {
       <div className="relative flex flex-col items-center justify-end pt-14 pb-16 overflow-hidden">
         <div
           className="absolute inset-0 animate-diagonal-in"
-          style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 55%, transparent 55%)' }}
         />
         <div
           className="absolute inset-0 pattern-lines opacity-20 animate-diagonal-in"
@@ -174,7 +172,7 @@ export default function Login() {
                   className="flex-1 py-3 rounded-xl text-sm font-bold uppercase tracking-widest transition-all duration-200 relative"
                   style={{
                     backgroundColor: active ? 'var(--brand-primary)' : 'var(--brand-surface-2)',
-                    color:           active ? '#FFFFFF' : '#666',
+                    color:           active ? 'var(--brand-on-primary)' : '#666',
                     border:          active ? '1px solid var(--brand-primary)' : '1px solid rgb(var(--brand-accent-rgb) / 0.18)',
                     transform:       active ? 'scale(1.03)' : 'scale(1)',
                     boxShadow:       active ? '0 0 18px rgb(var(--brand-primary-rgb) / 0.35)' : 'none',
@@ -229,7 +227,7 @@ export default function Login() {
                 className="btn-red w-full font-display tracking-widest py-4 rounded-xl transition-all active:scale-95 disabled:opacity-50"
                 style={{
                   backgroundColor: 'var(--brand-primary)',
-                  color: '#fff',
+                  color: 'var(--brand-on-primary)',
                   fontSize: '1.15rem',
                   letterSpacing: '0.18em',
                   border: 'none',

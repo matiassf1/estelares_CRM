@@ -72,7 +72,7 @@ export default function ForgotPassword() {
                 type="submit"
                 disabled={loading}
                 className="btn-red w-full font-display tracking-widest py-4 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                style={{ backgroundColor: 'var(--brand-primary)', color: '#fff', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}
+                style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}
               >
                 {loading ? 'ENVIANDO...' : 'ENVIAR ENLACE'}
               </button>

@@ -140,8 +140,8 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
               </div>
               <button
                 onClick={onCreateMember}
-                className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                className="font-display tracking-widest text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}
               >
                 + Agregar
               </button>

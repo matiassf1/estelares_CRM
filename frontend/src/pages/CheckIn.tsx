@@ -286,8 +286,8 @@ export default function CheckIn() {
 
         <button
           onClick={() => setStatus('scanning')}
-          className="mt-10 w-full max-w-xs py-4 rounded-2xl font-display tracking-widest text-white text-lg active:scale-95 transition-transform animate-slide-up-d2"
-          style={{ backgroundColor: 'var(--brand-primary)', boxShadow: '0 0 24px rgb(var(--brand-primary-rgb) / 0.4)' }}
+          className="mt-10 w-full max-w-xs py-4 rounded-2xl font-display tracking-widest text-lg active:scale-95 transition-transform animate-slide-up-d2"
+          style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', boxShadow: '0 0 24px rgb(var(--brand-primary-rgb) / 0.4)' }}
         >
           ESCANEAR QR
         </button>

@@ -128,8 +128,8 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
               <img src={form.foto_url} alt="" className="w-10 h-10 rounded-full object-cover" />
             ) : (
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                style={{ backgroundColor: 'var(--brand-primary)' }}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+                style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
               >
                 {initials || '?'}
               </div>
@@ -304,8 +304,8 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
             type="submit"
             form="player-edit-form"
             disabled={saving || photoLoading}
-            className="flex-1 py-3 rounded-xl font-display tracking-widest text-white text-sm transition-all active:scale-95 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--brand-primary)' }}
+            className="flex-1 py-3 rounded-xl font-display tracking-widest text-sm transition-all active:scale-95 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
           >
             {saving ? 'GUARDANDO…' : photoLoading ? 'CARGANDO FOTO…' : 'GUARDAR'}
           </button>

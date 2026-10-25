@@ -285,7 +285,7 @@ export default function Admin() {
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-2 rounded-lg text-xs font-display tracking-widest uppercase transition-all active:scale-95"
               style={tab === t
-                ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
+                ? { backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }
                 : { color: 'var(--brand-muted)' }}>
               {t === 'jugadores' ? 'Jugadores' : t === 'categorias' ? 'Categorías' : t === 'parking' ? 'Parking' : 'Analítica'}
             </button>
@@ -317,8 +317,8 @@ export default function Admin() {
                 />
                 <button
                   onClick={openCreate}
-                  className="font-display tracking-widest text-white text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                  className="font-display tracking-widest text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                  style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}
                 >
                   + AGREGAR
                 </button>
@@ -358,7 +358,7 @@ export default function Admin() {
                     onClick={() => setMemberFilter(chip)}
                     className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
                     style={memberFilter === chip
-                      ? { backgroundColor: 'var(--brand-primary)', color: '#fff' }
+                      ? { backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }
                       : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
                   >
                     {CHIP_LABEL[chip]}
@@ -574,8 +574,8 @@ export default function Admin() {
                     <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
                     <button
                       onClick={() => setCatDrawer({ mode: 'create', cat: null })}
-                      className="font-display tracking-widest text-white text-sm px-4 py-2 rounded-xl active:scale-95 transition-all whitespace-nowrap"
-                      style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                      className="font-display tracking-widest text-sm px-4 py-2 rounded-xl active:scale-95 transition-all whitespace-nowrap"
+                      style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}
                     >
                       + Nueva
                     </button>
@@ -716,8 +716,8 @@ export default function Admin() {
                 className="input-field flex-1"
               />
               <button type="submit" disabled={addingSpot || !newSpotNumber.trim()}
-                className="btn-red font-display tracking-widest text-white text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
-                style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
+                className="btn-red font-display tracking-widest text-base px-5 py-2.5 rounded-xl active:scale-95 transition-all whitespace-nowrap disabled:opacity-40"
+                style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}>
                 + AGREGAR
               </button>
             </form>

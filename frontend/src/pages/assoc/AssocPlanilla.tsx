@@ -67,7 +67,7 @@ export default function AssocPlanilla() {
           <button
             onClick={() => window.print()}
             className="text-sm px-4 py-2 rounded-xl font-semibold active:scale-95 transition-all"
-            style={{ backgroundColor: 'var(--brand-primary)', color: 'white' }}
+            style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
           >
             Imprimir / Guardar PDF
           </button>
