@@ -114,11 +114,39 @@ function BottomSheet({ items, header, onClose }: ActionMenuProps & { onClose: ()
 }
 
 // ── Desktop dropdown ──────────────────────────────────────────────────────────
-function Dropdown({ items, onClose }: { items: ActionMenuItem[]; onClose: () => void }) {
-  return (
+/**
+ * Se portalea al body con posición fija, en vez de quedar `absolute` dentro de
+ * la fila. Las filas de jugadores no activos llevan `opacity` menor a 1, y una
+ * opacidad < 1 crea un contexto de apilamiento: el z-index del menú quedaba
+ * encerrado en su propia fila y las filas siguientes le pintaban encima,
+ * dejándolo visible pero no clickeable.
+ */
+function Dropdown({
+  items,
+  onClose,
+  anchor,
+}: {
+  items: ActionMenuItem[];
+  onClose: () => void;
+  anchor: DOMRect;
+}) {
+  const MENU_WIDTH = 190;
+  // Si no entra hacia abajo, se abre hacia arriba.
+  const estimatedHeight = items.length * 42 + 12;
+  const openUp = anchor.bottom + estimatedHeight > window.innerHeight && anchor.top > estimatedHeight;
+
+  return createPortal(
     <div
-      className="absolute right-0 top-9 z-50 min-w-[180px] rounded-xl py-1.5 shadow-2xl"
-      style={{ backgroundColor: '#1e1e20', border: '1px solid rgba(255,255,255,0.1)' }}
+      className="fixed z-[150] rounded-xl py-1.5 shadow-2xl"
+      style={{
+        top: openUp ? undefined : anchor.bottom + 4,
+        bottom: openUp ? window.innerHeight - anchor.top + 4 : undefined,
+        left: Math.max(8, Math.min(anchor.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 8)),
+        width: MENU_WIDTH,
+        backgroundColor: '#1e1e20',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+      onMouseDown={e => e.stopPropagation()}
     >
       {items.map((item, idx) => (
         <div key={idx}>
@@ -132,14 +160,17 @@ function Dropdown({ items, onClose }: { items: ActionMenuItem[]; onClose: () => 
           </button>
         </div>
       ))}
-    </div>
+    </div>,
+    document.body
   );
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ActionMenu({ items, header }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -147,14 +178,31 @@ export default function ActionMenu({ items, header }: ActionMenuProps) {
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    // El menú va portaleado con posición fija: si la página scrollea o cambia
+    // de tamaño, el ancla deja de ser válida. Cerrarlo es más honesto que
+    // dejarlo flotando en el lugar equivocado.
+    const closeIt = () => setOpen(false);
     document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    window.addEventListener('scroll', closeIt, true);
+    window.addEventListener('resize', closeIt);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      window.removeEventListener('scroll', closeIt, true);
+      window.removeEventListener('resize', closeIt);
+    };
   }, [open, isMobile]);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && btnRef.current) setAnchor(btnRef.current.getBoundingClientRect());
+    setOpen(v => !v);
+  };
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        ref={btnRef}
+        onClick={toggle}
         className="w-8 h-8 flex items-center justify-center rounded-lg transition-all active:scale-90"
         style={{
           color: open ? 'var(--brand-accent)' : 'var(--brand-muted)',
@@ -170,8 +218,8 @@ export default function ActionMenu({ items, header }: ActionMenuProps) {
       {open && isMobile && (
         <BottomSheet items={items} header={header} onClose={() => setOpen(false)} />
       )}
-      {open && !isMobile && (
-        <Dropdown items={items} onClose={() => setOpen(false)} />
+      {open && !isMobile && anchor && (
+        <Dropdown items={items} onClose={() => setOpen(false)} anchor={anchor} />
       )}
     </div>
   );

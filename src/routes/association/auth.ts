@@ -2,10 +2,11 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../../db';
 import { signAssocToken } from '../../middleware/assocAuth';
+import { asyncHandler } from '../../utils/asyncHandler';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   try {
     const { username, password } = req.body as { username: string; password: string };
     if (!username || !password) {
@@ -35,6 +36,6 @@ router.post('/login', async (req, res) => {
     console.error('[assoc/auth/login]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 export default router;

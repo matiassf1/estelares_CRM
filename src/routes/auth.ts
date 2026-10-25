@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { pool } from '../db';
 import { signToken, authMiddleware, requireRole } from '../middleware/auth';
 import { sendPasswordReset } from '../utils/mailer';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
@@ -18,7 +19,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Demasiados intentos, esperá 15 minutos' },
 });
 
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { dni, password } = req.body;
   if (!dni || !password) {
     res.status(400).json({ error: 'DNI y contraseña requeridos' });
@@ -40,9 +41,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     token,
     user: { id: member.id, nombre: member.nombre, apellido: member.apellido, dni: member.dni },
   });
-});
+}));
 
-router.post('/admin/login', loginLimiter, async (req, res) => {
+router.post('/admin/login', loginLimiter, asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     res.status(400).json({ error: 'Usuario y contraseña requeridos' });
@@ -59,9 +60,9 @@ router.post('/admin/login', loginLimiter, async (req, res) => {
     token,
     user: { id: admin.id, username: admin.username, role: admin.role },
   });
-});
+}));
 
-router.get('/me', authMiddleware, async (req, res) => {
+router.get('/me', authMiddleware, asyncHandler(async (req, res) => {
   const { id, type } = req.user!;
   if (type === 'member') {
     const { rows } = await pool.query(
@@ -95,9 +96,9 @@ router.get('/me', authMiddleware, async (req, res) => {
     );
     res.json({ type, ...rows[0] });
   }
-});
+}));
 
-router.put('/change-password', authMiddleware, requireRole('member'), async (req, res) => {
+router.put('/change-password', authMiddleware, requireRole('member'), asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {
     res.status(400).json({ error: 'Contraseña actual y nueva requeridas' });
@@ -112,9 +113,9 @@ router.put('/change-password', authMiddleware, requireRole('member'), async (req
   const hash = await bcrypt.hash(String(newPassword), 10);
   await pool.query('UPDATE members SET password_hash = $1 WHERE id = $2', [hash, req.user!.id]);
   res.json({ ok: true });
-});
+}));
 
-router.post('/forgot-password', loginLimiter, async (req, res) => {
+router.post('/forgot-password', loginLimiter, asyncHandler(async (req, res) => {
   const { dni } = req.body;
   // Siempre { ok: true }: no revelamos si el DNI existe ni si tiene email cargado
   if (!dni) {
@@ -139,9 +140,9 @@ router.post('/forgot-password', loginLimiter, async (req, res) => {
     console.error('Error enviando email de reset:', err);
   }
   res.json({ ok: true });
-});
+}));
 
-router.post('/reset-password', loginLimiter, async (req, res) => {
+router.post('/reset-password', loginLimiter, asyncHandler(async (req, res) => {
   const { token, newPassword } = req.body;
   if (!token || !newPassword) {
     res.status(400).json({ error: 'Token inválido o expirado' });
@@ -161,6 +162,6 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
   await pool.query('UPDATE members SET password_hash = $1 WHERE id = $2', [hash, reset.member_id]);
   await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [reset.id]);
   res.json({ ok: true });
-});
+}));
 
 export default router;

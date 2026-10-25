@@ -48,8 +48,8 @@ export default function CategoryDrawer({ mode, categoria, onSave, onClose }: Cat
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[70]"
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
+        className="fixed inset-0 z-[70] backdrop-blur-mobile"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         onClick={onClose}
       />
       {/* Panel */}

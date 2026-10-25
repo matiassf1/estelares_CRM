@@ -61,7 +61,7 @@ export default function InicioPage({ onSection, onVerJugadores }: { onSection: (
               <PendingCard
                 value={pendientes.descolgados}
                 title="Se descolgaron"
-                detail={`activos sin venir hace +21 días · ${Math.round((pendientes.descolgados / Math.max(club.activos, 1)) * 100)}% del plantel`}
+                detail={`Activos sin venir hace +21 días · ${Math.round((pendientes.descolgados / Math.max(club.activos, 1)) * 100)}% del plantel`}
                 tone="alert"
                 onClick={() => onVerJugadores()}
               />
@@ -70,7 +70,7 @@ export default function InicioPage({ onSection, onVerJugadores }: { onSection: (
               <PendingCard
                 value={pendientes.a_revisar}
                 title="Membresías a revisar"
-                detail="migradas sin motivo registrado"
+                detail="Migradas sin motivo registrado"
                 onClick={() => onVerJugadores('revision')}
               />
             )}
@@ -78,7 +78,7 @@ export default function InicioPage({ onSection, onVerJugadores }: { onSection: (
               <PendingCard
                 value={pendientes.sin_foto}
                 title="Sin foto de carnet"
-                detail="el portero no puede validarlos visualmente"
+                detail="El portero no puede validarlos visualmente"
                 onClick={() => onVerJugadores('sin_foto')}
               />
             )}
@@ -86,7 +86,7 @@ export default function InicioPage({ onSection, onVerJugadores }: { onSection: (
               <PendingCard
                 value={0}
                 title="Horarios cargados"
-                detail="sin esto no hay control de asistencia"
+                detail="Sin esto no hay control de asistencia"
                 onClick={() => onSection('club')}
               />
             )}

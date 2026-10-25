@@ -102,25 +102,37 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
   };
 
   const isActive = (m: Member) => (m.status || 'ACTIVE') === 'ACTIVE';
-  const suspendidos = members.filter(m => m.status === 'SUSPENDED').length;
-  const bajas = members.filter(m => m.status === 'TERMINATED').length;
+
+  // Los contadores se calculan sobre el universo que ya tiene aplicados la
+  // categoría y la búsqueda, no sobre el padrón completo: si el admin filtra
+  // por ELITE 1, "Suspendidos 10" tiene que decir cuántos hay en ELITE 1, no
+  // en todo el club. Un chip que promete 10 y muestra 2 es peor que no tenerlo.
+  const universo = members
+    .filter(m => `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase()))
+    .filter(m => (filterCatId ? m.categoria_id === filterCatId : true));
+
+  const suspendidos = universo.filter(m => m.status === 'SUSPENDED').length;
+  const bajas = universo.filter(m => m.status === 'TERMINATED').length;
   // Jugadores migrados del booleano anterior: el motivo real nunca se registró
   // y el club debe reclasificarlos uno por uno.
-  const enRevision = members.filter(m => m.needs_review).length;
-  const sinFoto = members.filter(m => isActive(m) && !m.foto_url).length;
+  const enRevision = universo.filter(m => m.needs_review).length;
+  const sinFoto = universo.filter(m => isActive(m) && !m.foto_url).length;
   const cocherasLibres = spots.filter(s => !s.member_id).length;
 
+  const acotado = filterCatId !== null || search.trim() !== '';
+
   const CHIP_LABEL: Record<MemberFilter, string> = {
-    todos: `Todos ${members.length}`,
-    hoy: `Hoy ${stats.today}`,
+    todos: `Todos ${universo.length}`,
+    // "Hoy" viene de /admin/stats, que es global: no se puede acotar por
+    // categoría sin pedirle al backend el ingreso de hoy por jugador.
+    hoy: acotado ? 'Hoy' : `Hoy ${stats.today}`,
     suspendidos: `Suspendidos ${suspendidos}`,
     bajas: `Bajas ${bajas}`,
     revision: `Revisar ${enRevision}`,
     sin_foto: `Sin foto ${sinFoto}`,
   };
 
-  const filtered = members
-    .filter(m => `${m.nombre} ${m.apellido} ${m.dni}`.toLowerCase().includes(search.toLowerCase()))
+  const filtered = universo
     .filter(m => {
       if (memberFilter === 'suspendidos') return m.status === 'SUSPENDED';
       if (memberFilter === 'bajas') return m.status === 'TERMINATED';
@@ -128,8 +140,7 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
       if (memberFilter === 'sin_foto') return isActive(m) && !m.foto_url;
       // 'hoy': member list lacks per-member check-in date; card shows stats.today count only
       return true;
-    })
-    .filter(m => filterCatId ? m.categoria_id === filterCatId : true);
+    });
 
   return (
     <>

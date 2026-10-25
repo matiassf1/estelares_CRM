@@ -24,8 +24,8 @@ export default function InfoPanel({ title, subtitle, children, onClose }: Props)
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[90] flex items-end md:items-center justify-center md:p-5"
-      style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[90] flex items-end md:items-center justify-center md:p-5 backdrop-blur-mobile"
+      style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
       onClick={onClose}
     >
       <div

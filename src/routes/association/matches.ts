@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { pool } from '../../db';
 import { assocAuthMiddleware } from '../../middleware/assocAuth';
 import { verifyPlayerQr } from '../../utils/assocQr';
+import { asyncHandler } from '../../utils/asyncHandler';
 
 const router = Router();
 router.use(assocAuthMiddleware);
 
 // List matches
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT m.*,
@@ -29,10 +30,10 @@ router.get('/', async (req, res) => {
     console.error('[assoc/matches GET]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 // Open accreditation
-router.patch('/:id/open', async (req, res) => {
+router.patch('/:id/open', asyncHandler(async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE matches SET status = 'ACCREDITATION_OPEN', updated_at = NOW()
@@ -54,10 +55,10 @@ router.patch('/:id/open', async (req, res) => {
     console.error('[assoc/matches/open]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 // Core accreditation endpoint — race-condition safe via UNIQUE + ON CONFLICT
-router.post('/:id/accredit', async (req, res) => {
+router.post('/:id/accredit', asyncHandler(async (req, res) => {
   try {
     const matchId = req.params.id;
     const { qr } = req.body as { qr: string };
@@ -218,10 +219,10 @@ router.post('/:id/accredit', async (req, res) => {
     console.error('[assoc/matches/accredit]', err);
     res.status(500).json({ result: 'INVALID_QR', error: 'Error interno' });
   }
-});
+}));
 
 // List accreditations
-router.get('/:id/accreditations', async (req, res) => {
+router.get('/:id/accreditations', asyncHandler(async (req, res) => {
   try {
     // Verify match belongs to operator's association
     const matchCheck = await pool.query(
@@ -248,6 +249,6 @@ router.get('/:id/accreditations', async (req, res) => {
     console.error('[assoc/matches/accreditations]', err);
     res.status(500).json({ error: 'Error interno' });
   }
-});
+}));
 
 export default router;

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, requireRole } from '../middleware/auth';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 router.use(authMiddleware, requireRole('admin'));
 
 // GET /api/admin/training-schedules?categoriaId=N
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { categoriaId } = req.query;
   const rows = (await pool.query(
     `SELECT ts.*, c.nombre AS categoria_nombre
@@ -17,10 +18,10 @@ router.get('/', async (req, res) => {
     categoriaId ? [categoriaId] : []
   )).rows;
   res.json(rows);
-});
+}));
 
 // POST /api/admin/training-schedules
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { categoria_id, day_of_week, start_time, tolerance_min = 15, valid_from } = req.body;
   if (categoria_id == null || day_of_week == null || !start_time) {
     res.status(400).json({ error: 'categoria_id, day_of_week y start_time son requeridos' });
@@ -33,10 +34,10 @@ router.post('/', async (req, res) => {
     [categoria_id, day_of_week, start_time, tolerance_min, valid_from || new Date().toISOString().slice(0, 10)]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
 // PUT /api/admin/training-schedules/:id — closes vigent schedule (preserves history)
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { start_time, tolerance_min, valid_until } = req.body;
   if (!valid_until) {
@@ -52,10 +53,10 @@ router.put('/:id', async (req, res) => {
   );
   if (!rows[0]) { res.status(404).json({ error: 'No encontrado' }); return; }
   res.json(rows[0]);
-});
+}));
 
 // DELETE /api/admin/training-schedules/:id — only allowed if valid_from >= today (no history)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `DELETE FROM training_schedules WHERE id = $1 AND valid_from >= CURRENT_DATE RETURNING id`,
     [req.params.id]
@@ -65,6 +66,6 @@ router.delete('/:id', async (req, res) => {
     return;
   }
   res.json({ ok: true });
-});
+}));
 
 export default router;
