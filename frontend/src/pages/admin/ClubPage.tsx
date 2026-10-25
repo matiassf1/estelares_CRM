@@ -119,7 +119,7 @@ export default function ClubPage({ initialView = 'categorias' }: Props) {
             <>
               {/* Header */}
               <div
-                className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
+                className="sticky top-0 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
                 style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
               >
                 <div className="flex items-center justify-between">

@@ -65,7 +65,7 @@ export default function CategoryDetailView({ categoria, members, onBack, onEditM
     <div className="flex flex-col min-h-0">
       {/* Back nav + title */}
       <div
-        className="sticky top-14 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-0"
+        className="sticky top-0 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-0"
         style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
       >
         <button
