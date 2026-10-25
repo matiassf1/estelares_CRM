@@ -17,9 +17,11 @@ const VIEWS: { id: ClubView; label: string }[] = [
 interface Props {
   /** Sub-vista inicial. "Asignar cochera" desde Jugadores entra directo en cocheras. */
   initialView?: ClubView;
+  /** Categoría a abrir directamente, al venir de una tarjeta del Inicio. */
+  initialCategoriaId?: number | null;
 }
 
-export default function ClubPage({ initialView = 'categorias' }: Props) {
+export default function ClubPage({ initialView = 'categorias', initialCategoriaId = null }: Props) {
   const [view, setView] = useState<ClubView>(initialView);
 
   const [members, setMembers] = useState<Member[]>([]);
@@ -49,6 +51,14 @@ export default function ClubPage({ initialView = 'categorias' }: Props) {
   }, []);
 
   useEffect(() => { load(); loadSpots(); }, [load, loadSpots]);
+
+  // Al llegar desde una tarjeta del Inicio, abrir esa categoría. Las categorías
+  // se cargan de forma asíncrona, así que esto espera a tenerlas.
+  useEffect(() => {
+    if (initialCategoriaId == null || categorias.length === 0) return;
+    const cat = categorias.find(c => c.id === initialCategoriaId);
+    if (cat) setCatView(cat);
+  }, [initialCategoriaId, categorias]);
 
   const openCreate = () => setEditPanel({ member: null });
   const openEdit = (m: Member) => setEditPanel({ member: m });
@@ -122,8 +132,12 @@ export default function ClubPage({ initialView = 'categorias' }: Props) {
                 className="sticky top-0 z-40 -mx-5 px-5 md:-mx-8 md:px-8 pt-4 pb-3 mb-4"
                 style={{ backgroundColor: 'var(--brand-bg)', borderBottom: '1px solid rgb(var(--brand-accent-rgb) / 0.08)' }}
               >
+                {/* La sub-navegación de arriba ya dice "Categorías": el título
+                    grande lo repetía. Mismo kicker que el Inicio. */}
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display text-white text-2xl tracking-widest uppercase">Categorías</h2>
+                  <p className="text-[10px] uppercase tracking-[0.17em]" style={{ color: 'var(--brand-muted)' }}>
+                    {categorias.length} categorías
+                  </p>
                   <button
                     onClick={() => setCatDrawer({ mode: 'create', cat: null })}
                     className="font-display tracking-widest text-sm px-4 py-2 rounded-xl active:scale-95 transition-all whitespace-nowrap"
