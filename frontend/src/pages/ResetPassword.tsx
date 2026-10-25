@@ -88,7 +88,7 @@ export default function ResetPassword() {
         </div>
         <Link to="/login"
           className="btn-red block w-full mt-6 font-display tracking-widest py-4 rounded-xl text-center transition-all active:scale-95"
-          style={{ backgroundColor: 'var(--brand-primary)', color: '#fff', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}>
+          style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}>
           INICIAR SESIÓN
         </Link>
       </>
@@ -122,7 +122,7 @@ export default function ResetPassword() {
           type="submit"
           disabled={loading}
           className="btn-red w-full font-display tracking-widest py-4 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--brand-primary)', color: '#fff', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}
+          style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', fontSize: '1.05rem', letterSpacing: '0.18em', border: 'none' }}
         >
           {loading ? 'GUARDANDO...' : 'GUARDAR'}
         </button>

@@ -164,6 +164,31 @@ export interface TrainingSchedule {
   valid_from: string; valid_until: string | null;
 }
 
+export interface DashboardCategoria {
+  id: number;
+  nombre: string;
+  activos: number;
+  ultimo_ingreso: string | null;
+  estado: 'ok' | 'warn' | 'alert';
+}
+
+export interface DashboardData {
+  pendientes: {
+    descolgados: number;
+    a_revisar: number;
+    sin_foto: number;
+    horarios: number;
+  };
+  club: {
+    activos: number;
+    suspendidos: number;
+    bajas: number;
+    ingresos_7d: number;
+    jugadores_7d: number;
+  };
+  categorias: DashboardCategoria[];
+}
+
 export const api = {
   login: (dni: string, password: string) =>
     request<{ token: string; user: { nombre: string; apellido: string; dni: string } }>('/auth/login', {
@@ -258,6 +283,9 @@ export const api = {
     request<{ today: number; activos: number; suspendidos: number; bajas: number; total: number }>(
       '/admin/stats'
     ),
+
+  getDashboard: () =>
+    request<DashboardData>('/admin/dashboard'),
 
   getCategorias: () =>
     request<Categoria[]>('/categorias'),

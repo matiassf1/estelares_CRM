@@ -161,8 +161,8 @@ export default function CategoryDrawer({ mode, categoria, onSave, onClose }: Cat
             type="submit"
             form="cat-drawer-form"
             disabled={saving}
-            className="flex-1 py-3 rounded-xl font-display tracking-widest text-white text-sm transition-all active:scale-95 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--brand-primary)' }}
+            className="flex-1 py-3 rounded-xl font-display tracking-widest text-sm transition-all active:scale-95 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
           >
             {saving ? 'GUARDANDO…' : mode === 'create' ? 'CREAR' : 'GUARDAR'}
           </button>

@@ -96,7 +96,7 @@ function PeriodFilter({ range, onChange }: {
             className="text-xs px-3 py-1.5 rounded-lg font-semibold uppercase tracking-wider transition-all"
             style={{
               backgroundColor: active ? 'var(--brand-primary)' : 'var(--brand-surface)',
-              color: active ? '#fff' : 'var(--brand-muted)',
+              color: active ? 'var(--brand-on-primary)' : 'var(--brand-muted)',
               border: active ? 'none' : '1px solid rgba(201,168,76,0.15)',
             }}>
             {p.label}
@@ -305,7 +305,7 @@ function CategoryPanel({
           {(['count', 'avg_hour', 'apellido'] as const).map(s => (
             <button key={s} onClick={() => setSort(s)}
               className="text-[10px] px-2 py-1 rounded uppercase tracking-wider"
-              style={{ backgroundColor: sort === s ? 'var(--brand-primary)' : 'var(--brand-bg)', color: sort === s ? '#fff' : 'var(--brand-muted)' }}>
+              style={{ backgroundColor: sort === s ? 'var(--brand-primary)' : 'var(--brand-bg)', color: sort === s ? 'var(--brand-on-primary)' : 'var(--brand-muted)' }}>
               {s === 'count' ? 'Asistencias' : s === 'avg_hour' ? 'Hora' : 'Nombre'}
             </button>
           ))}

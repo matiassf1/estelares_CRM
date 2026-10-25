@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
-import { useTheme } from './hooks/useTheme.ts';
 import Login from './pages/Login.tsx';
 import CheckIn from './pages/CheckIn.tsx';
 import Carnet from './pages/Carnet.tsx';
@@ -91,7 +90,6 @@ function AppRoutes() {
 }
 
 export default function App() {
-  useTheme(); // initializes theme from localStorage on mount
   return (
     <AssocAuthProvider>
       <AuthProvider>

@@ -79,11 +79,6 @@ export default {
           '90%':  { opacity: '1' },
           '100%': { transform: 'translate3d(0, 400%, 0)',  opacity: '0' },
         },
-        numberPop: {
-          '0%':   { transform: 'scale3d(1, 1, 1)' },
-          '40%':  { transform: 'scale3d(1.14, 1.14, 1)', color: '#CC2222' },
-          '100%': { transform: 'scale3d(1, 1, 1)' },
-        },
       },
       animation: {
         // cubic-bezier(0.22, 1, 0.36, 1): smooth deceleration, less aggressive than 0.16
@@ -103,7 +98,6 @@ export default {
         'gold-flash':        'goldFlash 1s ease-out forwards',
         'diagonal-in':       'diagonalIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
         'scan-line':         'scanLine 2s ease-in-out infinite',
-        'number-pop':        'numberPop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

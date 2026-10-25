@@ -119,7 +119,7 @@ export default function Carnet({ mock }: Props) {
           className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-card-reveal"
           style={{ border: '1px solid rgb(var(--brand-primary-rgb) / 0.2)', animationDelay: '0.05s' }}
         >
-          {/* RED HEADER */}
+          {/* HEADER */}
           <div className="relative overflow-hidden px-5 pt-5 pb-16"
             style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-darker) 100%)' }}>
             <div className="absolute inset-0 pattern-lines opacity-20" />
@@ -133,11 +133,11 @@ export default function Carnet({ mock }: Props) {
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-0.5"
-                  style={{ color: 'rgba(255,255,255,0.88)' }}>
+                  style={{ color: 'color-mix(in srgb, var(--brand-on-primary) 75%, transparent)' }}>
                   Estelares Futsal
                 </p>
-                <p className="font-display text-white text-3xl tracking-widest leading-none">CARNET</p>
-                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                <p className="font-display text-3xl tracking-widest leading-none" style={{ color: 'var(--brand-on-primary)' }}>CARNET</p>
+                <p className="text-xs tracking-[0.25em] mt-1 font-semibold" style={{ color: 'color-mix(in srgb, var(--brand-on-primary) 60%, transparent)' }}>
                   TEMPORADA {temporada}
                 </p>
               </div>
@@ -260,13 +260,13 @@ export default function Carnet({ mock }: Props) {
                 <button
                   onClick={() => !mock && navigate('/check-in')}
                   className="btn-red w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 active:scale-95 transition-all"
-                  style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}
+                  style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}
                 >
-                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <span className="font-display tracking-widest text-white text-base">ESCANEAR QR</span>
+                  <span className="font-display tracking-widest text-base">ESCANEAR QR</span>
                 </button>
               )}
             </div>
@@ -365,8 +365,8 @@ export default function Carnet({ mock }: Props) {
                 <button
                   type="submit"
                   disabled={pwLoading}
-                  className="w-full py-2.5 rounded-xl text-[11px] uppercase tracking-[0.2em] text-white disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--brand-primary)' }}
+                  className="w-full py-2.5 rounded-xl text-[11px] uppercase tracking-[0.2em] disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }}
                 >
                   {pwLoading ? 'Guardando...' : 'Guardar'}
                 </button>

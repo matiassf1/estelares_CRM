@@ -93,8 +93,8 @@ export default function ScheduleConfig({ categoriaId, categoriaNombre }: Props) 
           <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>min</span>
         </div>
         <button onClick={handleAdd} disabled={loading}
-          className="text-white font-display tracking-widest text-sm px-4 py-2 rounded-xl disabled:opacity-40 transition-opacity"
-          style={{ backgroundColor: 'var(--brand-primary)', border: 'none' }}>
+          className="font-display tracking-widest text-sm px-4 py-2 rounded-xl disabled:opacity-40 transition-opacity"
+          style={{ backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)', border: 'none' }}>
           + Agregar
         </button>
       </div>
