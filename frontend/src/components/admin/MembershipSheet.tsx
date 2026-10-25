@@ -108,11 +108,10 @@ export default function MembershipSheet({ member, op, onClose, onDone }: Props) 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex flex-col justify-end"
+      className="fixed inset-0 z-[200] flex flex-col justify-end backdrop-blur-mobile"
       style={{
         backgroundColor: `rgba(0,0,0,${visible ? 0.6 : 0})`,
-        backdropFilter: visible ? 'blur(3px)' : 'blur(0px)',
-        transition: 'background-color 0.25s ease, backdrop-filter 0.25s ease',
+        transition: 'background-color 0.25s ease',
       }}
       onMouseDown={e => { if (e.target === e.currentTarget) close(); }}
     >

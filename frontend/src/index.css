@@ -147,6 +147,17 @@ body::after {
 }
 .animate-slide-in-right {
   animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* ── Desenfoque de fondo, sólo en pantallas chicas ──
+   backdrop-filter desenfoca el área completa del elemento en cada frame. En un
+   celular son ~340 mil píxeles y se ve fluido; en un escritorio de 1920×1080
+   son ~2 millones, y los paneles que se deslizan sobre el fondo se ven
+   trabados. El velo oscuro ya separa el panel del contenido sin ese costo. */
+.backdrop-blur-mobile { backdrop-filter: none; }
+@media (max-width: 767px) {
+  .backdrop-blur-mobile { backdrop-filter: blur(3px); }
 }
 .scrollbar-none {
   scrollbar-width: none;

@@ -19,8 +19,8 @@ export default function ConfirmModal({
   useEffect(() => lockBodyScroll(), []);
   return createPortal(
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-5"
-      style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[90] flex items-center justify-center p-5 backdrop-blur-mobile"
+      style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
       onClick={onCancel}
     >
       <div

@@ -106,8 +106,8 @@ export default function PlayerEditPanel({ member, categorias, onSave, onClose }:
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[70]"
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
+        className="fixed inset-0 z-[70] backdrop-blur-mobile"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         onClick={onClose}
       />
       {/* Panel */}
