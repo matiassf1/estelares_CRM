@@ -6,13 +6,18 @@ import ConfirmModal from '../../components/admin/ConfirmModal';
 import PlayerEditPanel from '../../components/admin/PlayerEditPanel';
 import CategoryDrawer from '../../components/admin/CategoryDrawer';
 import CategoryDetailView from '../../components/admin/CategoryDetailView';
+import ScheduleConfig from '../../components/admin/ScheduleConfig';
+import type { TrainingSchedule } from '../../lib/api.ts';
 
-type ClubView = 'categorias' | 'cocheras';
+type ClubView = 'categorias' | 'horarios' | 'cocheras';
 
 const VIEWS: { id: ClubView; label: string }[] = [
   { id: 'categorias', label: 'Categorías' },
+  { id: 'horarios', label: 'Horarios' },
   { id: 'cocheras', label: 'Cocheras' },
 ];
+
+const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 interface Props {
   /** Sub-vista inicial. "Asignar cochera" desde Jugadores entra directo en cocheras. */
@@ -33,6 +38,10 @@ export default function ClubPage({ initialView = 'categorias', initialCategoriaI
   const [catDrawer, setCatDrawer] = useState<{ mode: 'create' | 'edit'; cat: Categoria | null } | null>(null);
   const [deleteCatTarget, setDeleteCatTarget] = useState<Categoria | null>(null);
 
+  // Horarios state
+  const [schedules, setSchedules] = useState<TrainingSchedule[]>([]);
+  const [expandedCatId, setExpandedCatId] = useState<number | null>(null);
+
   // Parking state
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [newSpotNumber, setNewSpotNumber] = useState('');
@@ -50,7 +59,12 @@ export default function ClubPage({ initialView = 'categorias', initialCategoriaI
     setSpots(s);
   }, []);
 
-  useEffect(() => { load(); loadSpots(); }, [load, loadSpots]);
+  const loadSchedules = useCallback(async () => {
+    const s = await api.getTrainingSchedules();
+    setSchedules(s);
+  }, []);
+
+  useEffect(() => { load(); loadSpots(); loadSchedules(); }, [load, loadSpots, loadSchedules]);
 
   // Al llegar desde una tarjeta del Inicio, abrir esa categoría. Las categorías
   // se cargan de forma asíncrona, así que esto espera a tenerlas.
@@ -262,6 +276,93 @@ export default function ClubPage({ initialView = 'categorias', initialCategoriaI
           )}
         </>
       )}
+
+      {/* ──────────── HORARIOS ──────────── */}
+      {view === 'horarios' && (() => {
+        const byCat = new Map<number, TrainingSchedule[]>();
+        for (const s of schedules) {
+          if (s.valid_until !== null) continue;
+          const arr = byCat.get(s.categoria_id) ?? [];
+          arr.push(s);
+          byCat.set(s.categoria_id, arr);
+        }
+        const conHorario = categorias.filter(c => (byCat.get(c.id) ?? []).length > 0);
+        const sinHorario = categorias.filter(c => (byCat.get(c.id) ?? []).length === 0);
+        const ordenadas = [...sinHorario, ...conHorario];
+
+        return (
+          <>
+            <p className="text-[10px] uppercase tracking-[0.17em] mb-3" style={{ color: 'var(--brand-muted)' }}>
+              {conHorario.length} de {categorias.length} categorías con horario
+            </p>
+
+            {conHorario.length === 0 && categorias.length > 0 && (
+              <div
+                className="rounded-xl px-4 py-3 mb-4"
+                style={{ backgroundColor: 'var(--brand-surface)', borderLeft: '3px solid var(--brand-gold)' }}
+              >
+                <p className="text-sm" style={{ color: '#F5F5F0' }}>
+                  Ninguna categoría tiene horario cargado.
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--brand-muted)' }}>
+                  Sin horarios no se puede saber quién faltó a entrenar, y el porcentaje de
+                  asistencia de Analítica queda vacío para todo el club.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {ordenadas.map(c => {
+                const catSchedules = (byCat.get(c.id) ?? []).sort((a, b) => a.day_of_week - b.day_of_week);
+                const activos = members.filter(m => m.categoria_id === c.id && (m.status || 'ACTIVE') === 'ACTIVE').length;
+                const isOpen = expandedCatId === c.id;
+                return (
+                  <div key={c.id} className="rounded-xl overflow-hidden"
+                    style={{ backgroundColor: 'var(--brand-surface)', border: '1px solid rgb(var(--brand-border-rgb) / 0.9)' }}>
+                    <button
+                      onClick={() => setExpandedCatId(isOpen ? null : c.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-semibold text-sm truncate">{c.nombre}</p>
+                        <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                          {activos} jugador{activos !== 1 ? 'es' : ''} activo{activos !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 justify-end max-w-[55%]">
+                        {catSchedules.length === 0 ? (
+                          <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>— sin horario —</span>
+                        ) : (
+                          catSchedules.map(s => (
+                            <span key={s.id} className="text-[11px] px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: 'rgb(var(--brand-accent-rgb) / 0.12)', color: 'var(--brand-accent)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}>
+                              {DAY_NAMES[s.day_of_week]} {s.start_time.slice(0, 5)}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="px-4 pb-4">
+                        <ScheduleConfig
+                          categoriaId={c.id}
+                          categoriaNombre={c.nombre}
+                          onChange={loadSchedules}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {categorias.length === 0 && (
+                <div className="text-center py-16 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
+                  No hay categorías creadas
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {/* ──────────── COCHERAS ──────────── */}
       {view === 'cocheras' && (
