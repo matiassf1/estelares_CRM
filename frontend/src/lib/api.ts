@@ -66,7 +66,10 @@ export interface MembershipPeriod {
   effective_until: string | null;
   reason: string;
   created_at: string;
+  created_by_username: string | null;
   closed_at: string | null;
+  closed_by_username: string | null;
+  close_reason: string | null;
   cancelled_at: string | null;
   legacy_migrated: boolean;
 }
@@ -84,6 +87,7 @@ export interface MembershipEvent {
 export interface MembershipHistory {
   periods: MembershipPeriod[];
   events: MembershipEvent[];
+  empty: boolean;
 }
 
 export interface ParkingSpot {

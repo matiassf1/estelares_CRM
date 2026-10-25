@@ -17,6 +17,11 @@ const MIGRATION_SQL = fs.readFileSync(
   'utf8'
 );
 
+const AUDIT_SQL = fs.readFileSync(
+  path.join(__dirname, '..', '005_backfill_legacy_audit.sql'),
+  'utf8'
+);
+
 async function createInactive(apellido: string, activo: boolean): Promise<string> {
   const { rows } = await pool.query(
     `INSERT INTO members (nombre, apellido, dni, password_hash, activo)
@@ -84,6 +89,37 @@ describe('backfill de members.activo (migración 004)', () => {
 
     const { rows } = await pool.query(
       'SELECT COUNT(*) AS n FROM membership_periods WHERE member_id = $1',
+      [id]
+    );
+    expect(parseInt(rows[0].n)).toBe(1);
+  });
+
+  // 005 repara lo que 004 no escribía: los migrados quedaban sin rastro en
+  // audit_log, y por lo tanto sin historial visible.
+  it('005 deja auditados a los migrados por 004', async () => {
+    const id = await createInactive('Sin auditar', false);
+    await pool.query(MIGRATION_SQL);
+    await pool.query(AUDIT_SQL);
+
+    const { rows } = await pool.query(
+      `SELECT action, reason, performed_by_type FROM audit_log
+       WHERE entity = 'member' AND entity_id = $1`,
+      [id]
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].action).toBe('legacy_migrated');
+    expect(rows[0].performed_by_type).toBe('admin');
+  });
+
+  it('005 es idempotente', async () => {
+    const id = await createInactive('Repetido audit', false);
+    await pool.query(MIGRATION_SQL);
+    await pool.query(AUDIT_SQL);
+    await pool.query(AUDIT_SQL);
+    await pool.query(AUDIT_SQL);
+
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) AS n FROM audit_log WHERE entity='member' AND entity_id = $1`,
       [id]
     );
     expect(parseInt(rows[0].n)).toBe(1);
