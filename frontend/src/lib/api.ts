@@ -106,6 +106,45 @@ export interface MembershipHistory {
   empty: boolean;
 }
 
+export type MembershipRequestKind = 'SUSPENSION' | 'TERMINATION' | 'REACTIVATION';
+export type MembershipRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+/**
+ * Solicitud iniciada por el jugador. No cambia su estado: queda como está hasta
+ * que un administrador la resuelve. Los campos son los de `membership_requests`
+ * tal cual los devuelve `services/membershipRequests.ts`.
+ */
+export interface MembershipRequest {
+  id: string;
+  member_id: string;
+  kind: MembershipRequestKind;
+  /** 'YYYY-MM-DD': el backend normaliza las fechas antes de responder. */
+  effective_from: string;
+  effective_until: string | null;
+  reason: string;
+  status: MembershipRequestStatus;
+  requested_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_note: string | null;
+  period_id: string | null;
+}
+
+/**
+ * Fila de la bandeja del administrador: la solicitud más los datos del jugador
+ * y su estado vigente, que el backend resuelve en la misma consulta para que la
+ * pantalla no tenga que pedir N veces el estado.
+ */
+export interface MembershipRequestRow extends MembershipRequest {
+  apellido: string;
+  nombre: string;
+  dni: string;
+  foto_url: string | null;
+  categoria_nombre: string | null;
+  member_status: MembershipStatus;
+  resolved_by_username: string | null;
+}
+
 export interface ParkingSpot {
   id: number;
   spot_number: string;
@@ -194,6 +233,8 @@ export interface DashboardData {
     a_revisar: number;
     sin_foto: number;
     horarios: number;
+    /** Solicitudes de membresía PENDING: alguien está esperando respuesta. */
+    solicitudes: number;
   };
   club: {
     activos: number;
@@ -320,6 +361,60 @@ export const api = {
     request<BulkResult>('/admin/members/bulk/reactivate', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  // ── Solicitudes del jugador (portal) ────────────────────────────────────────
+  // El member_id sale del token: estas rutas no lo reciben ni lo aceptan.
+  getMyMembershipRequest: () =>
+    request<{ request: MembershipRequest | null }>('/member/membership-request'),
+
+  createMembershipRequest: (data: {
+    kind: MembershipRequestKind;
+    effective_from: string;
+    /** Sólo para SUSPENSION; el backend rechaza el resto de las combinaciones. */
+    effective_until?: string | null;
+    reason: string;
+  }) =>
+    request<{ request: MembershipRequest }>('/member/membership-request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  cancelMembershipRequest: (id: string) =>
+    request<{ request: MembershipRequest }>(`/member/membership-request/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // ── Bandeja de solicitudes (administrador) ──────────────────────────────────
+  getMembershipRequests: (status?: MembershipRequestStatus) =>
+    request<{ requests: MembershipRequestRow[] }>(
+      `/admin/membership-requests${status ? `?status=${status}` : ''}`
+    ),
+
+  approveMembershipRequest: (
+    id: string,
+    data: {
+      /** Omitido = se aplica lo que pidió el jugador, tal cual. */
+      kind?: MembershipRequestKind;
+      effective_from?: string;
+      effective_until?: string | null;
+      note?: string;
+    } = {}
+  ) =>
+    request<{
+      request: MembershipRequest;
+      applied_kind: MembershipRequestKind;
+      period_id: string | null;
+      state: MembershipState;
+    }>(`/admin/membership-requests/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  rejectMembershipRequest: (id: string, note: string) =>
+    request<{ request: MembershipRequest }>(`/admin/membership-requests/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
     }),
 
   getMembership: (id: string) =>

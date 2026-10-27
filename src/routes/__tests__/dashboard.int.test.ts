@@ -133,9 +133,29 @@ describe('GET /api/admin/dashboard', () => {
     expect(res.body.categorias.map((c: { nombre: string }) => c.nombre)).not.toContain('Vacia');
   });
 
+  it('cuenta las solicitudes de membresía pendientes, no las ya resueltas', async () => {
+    const a = await createMember();
+    const b = await createMember();
+    await pool.query(
+      `INSERT INTO membership_requests (member_id, kind, effective_from, reason, status)
+       VALUES ($1,'TERMINATION',CAST((NOW() - INTERVAL '3 hours') AS DATE),'me voy','PENDING'),
+              ($2,'SUSPENSION', CAST((NOW() - INTERVAL '3 hours') AS DATE),'viaje','REJECTED')`,
+      [a, b]
+    );
+
+    const res = await get().expect(200);
+    expect(res.body.pendientes.solicitudes).toBe(1);
+  });
+
   it('una base vacía devuelve ceros sin romperse', async () => {
     const res = await get().expect(200);
-    expect(res.body.pendientes).toEqual({ descolgados: 0, a_revisar: 0, sin_foto: 0, horarios: 0 });
+    expect(res.body.pendientes).toEqual({
+      descolgados: 0,
+      a_revisar: 0,
+      sin_foto: 0,
+      horarios: 0,
+      solicitudes: 0,
+    });
     expect(res.body.club.activos).toBe(0);
     expect(res.body.categorias).toEqual([]);
   });

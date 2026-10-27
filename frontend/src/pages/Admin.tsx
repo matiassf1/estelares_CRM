@@ -49,7 +49,7 @@ export default function Admin() {
       .then(d => {
         if (cancelled) return;
         const f: AdminSection[] = [];
-        if (d.pendientes.descolgados || d.pendientes.a_revisar || d.pendientes.sin_foto) f.push('jugadores');
+        if (d.pendientes.solicitudes || d.pendientes.descolgados || d.pendientes.a_revisar || d.pendientes.sin_foto) f.push('jugadores');
         if (d.pendientes.horarios === 0) f.push('club');
         setFlagged(f);
       })

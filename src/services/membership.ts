@@ -78,7 +78,7 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((b - a) / 86400000);
 }
 
-function assertReason(reason: unknown, required: boolean): string | null {
+export function assertReason(reason: unknown, required: boolean): string | null {
   if (reason === undefined || reason === null || String(reason).trim() === '') {
     if (required) throw new MembershipError(400, 'El motivo es obligatorio');
     return null;
@@ -176,7 +176,7 @@ export function assertCanCheckIn(state: MembershipState): void {
 
 // ── Auditoría ─────────────────────────────────────────────────────────────────
 
-async function audit(
+export async function audit(
   client: PoolClient,
   params: {
     entity: string;
@@ -205,6 +205,20 @@ async function audit(
 }
 
 // ── Infraestructura transaccional ─────────────────────────────────────────────
+//
+// INTERNAS DEL DOMINIO DE MEMBRESÍA
+// ---------------------------------
+// `withMembersLock`, `LockedMember` y las tres funciones `*Tx` están exportadas
+// pero NO son API pública: son las piezas internas con las que este archivo
+// compone sus propias operaciones, y las consume además
+// `services/membershipRequests.ts`, que al aprobar una solicitud necesita
+// aplicar la transición DENTRO de su misma transacción (para que el fallo de la
+// transición deje la solicitud sin aprobar, por ROLLBACK).
+//
+// Se exportan en lugar de duplicarse justamente para que las reglas de
+// transición, la liberación de cochera y la auditoría sigan viviendo acá y en
+// un solo lugar. Fuera del dominio de membresía, usá `suspend`, `terminate`,
+// `reactivate` y las variantes `bulk*`, que abren la transacción por su cuenta.
 
 /**
  * Ejecuta una transición dentro de una transacción, tomando FOR UPDATE sobre la
@@ -213,7 +227,7 @@ async function audit(
  * Mismo patrón transaccional que routes/parking.ts.
  */
 /** Datos del jugador que el lock deja disponibles dentro de la transacción. */
-interface LockedMember {
+export interface LockedMember {
   id: string;
   createdAt: string;
   nombre: string;
@@ -233,7 +247,7 @@ function displayName(m: LockedMember): string {
  * común tomarían los locks en órdenes distintos y se trabarían mutuamente
  * (deadlock). Con un orden determinista uno espera al otro.
  */
-async function withMembersLock<T>(
+export async function withMembersLock<T>(
   memberIds: string[],
   fn: (client: PoolClient, members: LockedMember[]) => Promise<T>
 ): Promise<T> {
@@ -362,7 +376,7 @@ export interface SuspendInput {
   actorId: string;
 }
 
-interface SuspendOpts {
+export interface SuspendOpts {
   effectiveFrom?: string;
   effectiveUntil?: string | null;
   reason: string;
@@ -374,7 +388,7 @@ interface SuspendOpts {
  * jugador tomado. Única fuente de verdad: la comparten `suspend` y `bulkSuspend`.
  * `reason` llega ya normalizado por `assertReason`.
  */
-async function suspendTx(
+export async function suspendTx(
   client: PoolClient,
   member: LockedMember,
   opts: SuspendOpts
@@ -426,13 +440,13 @@ export interface TerminateInput {
   actorId: string;
 }
 
-interface TerminateOpts {
+export interface TerminateOpts {
   effectiveFrom?: string;
   reason: string;
   actorId: string;
 }
 
-async function terminateTx(
+export async function terminateTx(
   client: PoolClient,
   member: LockedMember,
   opts: TerminateOpts
@@ -535,13 +549,13 @@ export interface ReactivateResult {
   closed_period_id: string | null;
 }
 
-interface ReactivateOpts {
+export interface ReactivateOpts {
   effectiveFrom?: string;
   reason: string | null;
   actorId: string;
 }
 
-async function reactivateTx(
+export async function reactivateTx(
   client: PoolClient,
   member: LockedMember,
   opts: ReactivateOpts

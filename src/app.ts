@@ -8,6 +8,7 @@ import porteroRoutes from './routes/portero';
 import adminRoutes from './routes/admin';
 import adminMembershipRoutes from './routes/admin-membership';
 import adminUsersRoutes from './routes/admin-users';
+import memberRequestsRoutes from './routes/member-requests';
 import adminDashboardRoutes from './routes/admin-dashboard';
 import parkingRoutes from './routes/parking';
 import categoriasRoutes from './routes/categorias';
@@ -42,6 +43,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/admin', adminMembershipRoutes);
   app.use('/api/admin', adminDashboardRoutes);
   app.use('/api/admin', adminUsersRoutes);
+  app.use('/api/member', memberRequestsRoutes);
   app.use('/api/parking', parkingRoutes);
   app.use('/api/categorias', categoriasRoutes);
   app.use('/api/admin/training-schedules', trainingSchedulesRouter);
