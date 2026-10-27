@@ -12,6 +12,11 @@ import {
   getMembershipState,
   getMembershipHistory,
 } from '../services/membership';
+import {
+  listRequests,
+  approveRequest,
+  rejectRequest,
+} from '../services/membershipRequests';
 
 const router = Router();
 // Sólo admin. El portero registra ingresos, no administra membresías.
@@ -144,6 +149,45 @@ router.get(
     // Valida que el jugador exista antes de devolver un historial vacío.
     await getMembershipState(req.params.id);
     res.json(await getMembershipHistory(req.params.id));
+  })
+);
+
+// ── Bandeja de solicitudes del jugador ────────────────────────────────────────
+// Aprobar es lo único que convierte una solicitud en un hecho administrativo;
+// listar y rechazar no tocan el estado del jugador.
+
+router.get(
+  '/membership-requests',
+  handle(async (req, res) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    res.json({ requests: await listRequests({ status }) });
+  })
+);
+
+router.post(
+  '/membership-requests/:id/approve',
+  handle(async (req, res) => {
+    const result = await approveRequest({
+      requestId: req.params.id,
+      actorId: req.user!.id,
+      effectiveFrom: req.body.effective_from,
+      effectiveUntil: req.body.effective_until,
+      kind: req.body.kind,
+      note: req.body.note,
+    });
+    const state = await getMembershipState(result.request.member_id);
+    res.json({ ...result, state });
+  })
+);
+
+router.post(
+  '/membership-requests/:id/reject',
+  handle(async (req, res) => {
+    res.json({ request: await rejectRequest({
+      requestId: req.params.id,
+      actorId: req.user!.id,
+      note: req.body.note,
+    }) });
   })
 );
 

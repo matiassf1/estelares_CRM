@@ -31,7 +31,8 @@ router.get('/dashboard', asyncHandler(async (_req, res) => {
          (SELECT COUNT(*) FROM members m
             JOIN member_membership_state s ON s.member_id = m.id AND s.status = 'ACTIVE'
             WHERE m.foto_url IS NULL) AS sin_foto,
-         (SELECT COUNT(*) FROM training_schedules WHERE valid_until IS NULL) AS horarios`,
+         (SELECT COUNT(*) FROM training_schedules WHERE valid_until IS NULL) AS horarios,
+         (SELECT COUNT(*) FROM membership_requests WHERE status = 'PENDING') AS solicitudes`,
       [DIAS_DESCOLGADO]
     ),
     pool.query(
@@ -77,6 +78,7 @@ router.get('/dashboard', asyncHandler(async (_req, res) => {
       a_revisar: n(p.a_revisar),
       sin_foto: n(p.sin_foto),
       horarios: n(p.horarios),
+      solicitudes: n(p.solicitudes),
     },
     club: {
       activos: n(c.activos),
