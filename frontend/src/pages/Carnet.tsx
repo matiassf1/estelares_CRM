@@ -1,10 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { api } from '../lib/api.ts';
+import { api, type MembershipRequest, type MembershipStatus } from '../lib/api.ts';
 import ClubShield from '../components/ClubShield.tsx';
+import RequestSheet, { ALLOWED_KINDS } from '../components/RequestSheet.tsx';
 
 interface TodayStatus { ingresado: boolean; hora?: string; }
+
+const REQUEST_KIND_LABEL: Record<MembershipRequest['kind'], string> = {
+  SUSPENSION: 'Suspensión',
+  TERMINATION: 'Baja',
+  REACTIVATION: 'Reactivación',
+};
+
+/** "hoy" / "hace 3 días": importa la antigüedad del pedido, no la hora exacta. */
+function hacePendiente(isoTimestamp: string): string {
+  const dias = Math.floor((Date.now() - new Date(isoTimestamp).getTime()) / 86400000);
+  if (dias <= 0) return 'Enviada hoy';
+  if (dias === 1) return 'Enviada ayer';
+  return `Enviada hace ${dias} días`;
+}
+
+/**
+ * Texto del botón según lo que el jugador realmente puede pedir. Se deriva de
+ * la misma tabla que usa el formulario, que a su vez espeja la del backend: un
+ * botón que prometa algo que el backend rechaza es peor que no tenerlo.
+ */
+function labelSolicitud(status: MembershipStatus): string {
+  const kinds = ALLOWED_KINDS[status];
+  if (!kinds.includes('REACTIVATION')) return 'Solicitar suspensión o baja';
+  if (kinds.length === 1) return 'Solicitar reactivación';
+  return 'Solicitar reactivación o baja';
+}
 
 /** 'YYYY-MM-DD' -> 'dd/mm', sin construir un Date (evita corrimiento de zona). */
 function fmtDia(iso: string): string {
@@ -62,6 +89,41 @@ export default function Carnet({ mock }: Props) {
         // offline — uses cache loaded in initial state
       });
   }, [mock, user?.id]);
+
+  // ── Solicitud de membresía ──────────────────────────────────────────────────
+  // El estado vigente manda: un jugador dado de baja entra igual al portal y
+  // puede pedir la reactivación desde acá.
+  const memberStatus: MembershipStatus = membership?.status ?? 'ACTIVE';
+  const [pendingRequest, setPendingRequest] = useState<MembershipRequest | null>(null);
+  const [requestLoaded, setRequestLoaded] = useState(false);
+  const [showRequestSheet, setShowRequestSheet] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (mock || !user?.id) return;
+    let cancelled = false;
+    api.getMyMembershipRequest()
+      .then(({ request }) => { if (!cancelled) { setPendingRequest(request); setRequestLoaded(true); } })
+      // Sin conexión no se muestra ni el botón ni la tarjeta: ofrecer una acción
+      // que no se puede completar es peor que no ofrecerla.
+      .catch(() => { if (!cancelled) setRequestLoaded(false); });
+    return () => { cancelled = true; };
+  }, [mock, user?.id]);
+
+  const cancelRequest = async () => {
+    if (!pendingRequest) return;
+    setRequestError('');
+    setCancelling(true);
+    try {
+      await api.cancelMembershipRequest(pendingRequest.id);
+      setPendingRequest(null);
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'No se pudo cancelar');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const [showPwForm, setShowPwForm] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
@@ -286,6 +348,89 @@ export default function Carnet({ mock }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ── Solicitud al club ──────────────────────────────────────────────
+            Va justo debajo del bloque de estado porque es la respuesta natural
+            a lo que el jugador acaba de leer ahí: "estoy suspendido" → "pedí la
+            reactivación", "estoy activo" → "pedí la pausa". */}
+        {!mock && requestLoaded && (
+          <div className="w-full max-w-sm mt-4 animate-slide-up" style={{ animationDelay: '0.52s' }}>
+            {pendingRequest ? (
+              <div
+                className="rounded-2xl px-4 py-3.5"
+                style={{
+                  backgroundColor: 'rgba(212,167,44,0.08)',
+                  border: '1px solid rgba(212,167,44,0.35)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-gold)' }} />
+                  <p className="text-[10px] uppercase tracking-[0.17em] font-bold" style={{ color: 'var(--brand-gold)' }}>
+                    Solicitud enviada
+                  </p>
+                </div>
+
+                <p className="text-sm text-white font-semibold mt-2">
+                  {REQUEST_KIND_LABEL[pendingRequest.kind]} desde el {fmtDia(pendingRequest.effective_from)}
+                  {pendingRequest.effective_until ? ` hasta el ${fmtDia(pendingRequest.effective_until)}` : ''}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--brand-muted)', lineHeight: 1.5 }}>
+                  Motivo: {pendingRequest.reason}
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  {hacePendiente(pendingRequest.requested_at)}
+                </p>
+
+                {/* Lo más importante de la tarjeta: todavía NO pasó nada. */}
+                <p
+                  className="text-[11px] mt-2.5 pt-2.5"
+                  style={{ color: 'var(--brand-gold)', borderTop: '1px solid rgba(212,167,44,0.2)', lineHeight: 1.5 }}
+                >
+                  Pendiente de aprobación · Tu membresía sigue
+                  {memberStatus === 'ACTIVE' ? ' activa' : memberStatus === 'SUSPENDED' ? ' suspendida' : ' dada de baja'} sin cambios
+                  hasta que el club resuelva.
+                </p>
+
+                {requestError && (
+                  <p className="text-[11px] mt-2" style={{ color: 'var(--brand-danger)' }}>{requestError}</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={cancelRequest}
+                  disabled={cancelling}
+                  className="w-full mt-3 py-2.5 rounded-xl text-[11px] uppercase tracking-[0.2em] disabled:opacity-50 active:opacity-70"
+                  style={{ color: 'var(--brand-muted)', border: '1px solid rgba(255,255,255,0.15)' }}
+                >
+                  {cancelling ? 'Cancelando…' : 'Cancelar solicitud'}
+                </button>
+              </div>
+            ) : (
+              /* Acción poco frecuente: discreta a propósito, para que no compita
+                 con "Escanear QR", que es lo que el jugador hace cada día. */
+              <button
+                type="button"
+                onClick={() => setShowRequestSheet(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[11px] uppercase tracking-[0.2em] transition-opacity hover:opacity-80"
+                style={{ color: 'rgb(var(--brand-accent-rgb) / 0.75)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.2)' }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6M9 15h6" />
+                </svg>
+                {labelSolicitud(memberStatus)}
+              </button>
+            )}
+          </div>
+        )}
+
+        {showRequestSheet && (
+          <RequestSheet
+            status={memberStatus}
+            onClose={() => setShowRequestSheet(false)}
+            onCreated={r => setPendingRequest(r)}
+          />
+        )}
 
         {!mock && (
           <div className="w-full max-w-sm mt-4 rounded-2xl overflow-hidden animate-slide-up"

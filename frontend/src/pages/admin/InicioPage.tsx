@@ -50,7 +50,7 @@ export default function InicioPage({ onVerJugadores, onVerCategoria, onVerHorari
 
   const { pendientes, club, categorias } = data;
   const hayPendientes =
-    pendientes.descolgados > 0 || pendientes.a_revisar > 0 ||
+    pendientes.solicitudes > 0 || pendientes.descolgados > 0 || pendientes.a_revisar > 0 ||
     pendientes.sin_foto > 0 || pendientes.horarios === 0;
 
   const visibles = verTodas ? categorias : categorias.slice(0, 6);
@@ -64,6 +64,17 @@ export default function InicioPage({ onVerJugadores, onVerCategoria, onVerHorari
             Para resolver
           </p>
           <div className="grid gap-2 md:grid-cols-2">
+            {/* Primera a propósito: es lo único de esta lista donde hay una
+                persona esperando una respuesta, no un dato a corregir. */}
+            {pendientes.solicitudes > 0 && (
+              <PendingCard
+                value={pendientes.solicitudes}
+                title="Solicitudes de los jugadores"
+                detail="Pedidos de suspensión o baja de los jugadores"
+                tone="warn"
+                onClick={() => onVerJugadores('solicitudes')}
+              />
+            )}
             {pendientes.descolgados > 0 && (
               <PendingCard
                 value={pendientes.descolgados}

@@ -10,6 +10,8 @@ import MembershipBadge from '../../components/admin/MembershipBadge';
 import MembershipSheet, { type MembershipOp } from '../../components/admin/MembershipSheet';
 import MembershipTimeline from '../../components/admin/MembershipTimeline';
 import InfoPanel from '../../components/admin/InfoPanel';
+import RequestsInbox from '../../components/admin/RequestsInbox';
+import type { MembershipRequestRow } from '../../lib/api';
 
 function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number }) {
   if (!tipo) return null;
@@ -35,7 +37,13 @@ function VehicleIcon({ tipo, size = 14 }: { tipo?: string | null; size?: number 
   return null;
 }
 
-export type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto';
+/**
+ * 'solicitudes' no filtra el padrón: cambia lo que se muestra debajo de la
+ * barra por la bandeja de pedidos. Es un chip y no una sección propia de la
+ * navegación porque lo que se resuelve ahí es el estado de un jugador, que es
+ * exactamente de lo que trata esta pantalla.
+ */
+export type MemberFilter = 'todos' | 'hoy' | 'suspendidos' | 'bajas' | 'revision' | 'sin_foto' | 'solicitudes';
 
 /**
  * Casilla de selección. En mobile la tarjeta entera abre el menú de acciones,
@@ -81,9 +89,17 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
   const [toast, setToast] = useState<{ message: string; onUndo?: () => void } | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
+  // La bandeja la posee esta página y no `RequestsInbox`: el chip tiene que
+  // saber cuántas hay pendientes antes de que la bandeja se monte.
+  const [requests, setRequests] = useState<MembershipRequestRow[]>([]);
+
   const load = useCallback(async () => {
     const [m, s, c] = await Promise.all([api.getMembers(), api.getStats(), api.getCategorias()]);
     setMembers(m); setStats(s); setCategorias(c);
+    // Su ausencia no debe dejar la pantalla sin padrón: va aparte y sin romper.
+    api.getMembershipRequests('PENDING')
+      .then(({ requests: r }) => setRequests(r))
+      .catch(() => { /* el chip simplemente no aparece */ });
   }, []);
 
   const loadSpots = useCallback(async () => {
@@ -157,7 +173,12 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
     bajas: `Bajas ${bajas}`,
     revision: `Revisar ${enRevision}`,
     sin_foto: `Sin foto ${sinFoto}`,
+    // Global y no acotado por categoría: una persona esperando respuesta no
+    // deja de esperar porque el admin haya filtrado por ELITE 1.
+    solicitudes: `Solicitudes ${requests.length}`,
   };
+
+  const verBandeja = memberFilter === 'solicitudes';
 
   const filtered = universo
     .filter(m => {
@@ -230,19 +251,29 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
             Los chips envuelven en lugar de desplazarse: desplazándose quedaban
             cortados contra el borde y no se veía que hubiera más. */}
         <div className="flex gap-1.5 flex-wrap mt-2.5">
-          {(['todos', 'hoy', 'suspendidos', 'bajas', ...(enRevision > 0 ? ['revision' as const] : []), 'sin_foto'] as MemberFilter[]).map(chip => (
+          {([
+            // Primero: es lo único de la barra donde alguien espera respuesta.
+            // Si no hay pendientes el chip no existe, para no ensuciar la barra.
+            ...(requests.length > 0 ? ['solicitudes' as const] : []),
+            'todos', 'hoy', 'suspendidos', 'bajas',
+            ...(enRevision > 0 ? ['revision' as const] : []),
+            'sin_foto',
+          ] as MemberFilter[]).map(chip => (
             <button
               key={chip}
               onClick={() => setMemberFilter(chip)}
               className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
               style={memberFilter === chip
                 ? { backgroundColor: 'var(--brand-primary)', color: 'var(--brand-on-primary)' }
-                : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
+                : chip === 'solicitudes'
+                  // Dorado: hay un jugador esperando, no es un filtro más.
+                  ? { backgroundColor: 'rgba(212,167,44,0.12)', color: 'var(--brand-gold)', border: '1px solid rgba(212,167,44,0.4)' }
+                  : { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-muted)', border: '1px solid rgb(var(--brand-accent-rgb) / 0.12)' }}
             >
               {CHIP_LABEL[chip]}
             </button>
           ))}
-          <select
+          {!verBandeja && <select
             value={filterCatId ?? ''}
             onChange={e => setFilterCatId(e.target.value ? parseInt(e.target.value) : null)}
             className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold appearance-none outline-none"
@@ -250,10 +281,16 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
           >
             <option value="">Categoría</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
+          </select>}
         </div>
       </div>
 
+      {verBandeja ? (
+        <RequestsInbox
+          requests={requests}
+          onResolved={message => { setToast({ message }); load(); }}
+        />
+      ) : (
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="text-center py-12 text-sm" style={{ color: 'rgb(var(--brand-muted-rgb) / 0.4)' }}>
@@ -390,6 +427,7 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
         ))}
         </div>
       </div>
+      )}
 
       {/* Barra de acciones masivas. Sólo existe si hay selección.
           En mobile se apoya sobre la navegación inferior `fixed` de AdminLayout
@@ -444,7 +482,7 @@ export default function JugadoresPage({ onIrACocheras, initialFilter }: { onIrAC
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {!verBandeja && filtered.length > 0 && (
         <p className="text-center text-xs mt-6 tracking-widest uppercase"
           style={{ color: 'rgb(var(--brand-accent-rgb) / 0.25)' }}>
           {filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}
